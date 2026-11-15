@@ -41,6 +41,11 @@ jobs:
     - name: Run Python Patcher
       run: python scripts/patcher.py
 
+    - name: Apply PAX branding
+      run: |
+        python -m pip install --user Pillow
+        python scripts/apply_pax_branding.py
+
     # prevents java.util.zip.ZipException: duplicate entry: stamp-cert-sha256
     - name: Remove original signature
       run: |
