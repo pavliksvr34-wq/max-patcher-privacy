@@ -81,6 +81,37 @@ jobs:
     - name: Final APK
       run: mv rebuilt_aligned.apk patched-app-release.apk
 
+    - name: Diagnose APK compatibility
+      run: |
+        python - <<'PY'
+        import zipfile
+        from pathlib import Path
+
+        files = {
+            "SOURCE": Path("source_apk/ru.oneme.app.apk"),
+            "REBUILT": Path("patched-app-release.apk"),
+        }
+        for label, path in files.items():
+            print(f"\\n===== {label}: {path} ({path.stat().st_size} bytes) =====")
+            with zipfile.ZipFile(path) as z:
+                names = z.namelist()
+                libs = [n for n in names if n.startswith("lib/") and n.endswith(".so")]
+                print("Native library count:", len(libs))
+                print("Native libraries:")
+                for name in libs:
+                    print(" ", name)
+                print("DEX files:", sum(1 for n in names if n.endswith(".dex")))
+                print("APK entries:", len(names))
+        PY
+        echo "===== SOURCE BADGING ====="
+        aapt dump badging source_apk/ru.oneme.app.apk | grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:|uses-feature:)"
+        echo "===== REBUILT BADGING ====="
+        aapt dump badging patched-app-release.apk | grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:|uses-feature:)"
+        echo "===== SOURCE REQUIRED FEATURES ====="
+        aapt dump xmltree source_apk/ru.oneme.app.apk AndroidManifest.xml | grep -E -A 3 "E: uses-feature|glEsVersion|E: uses-sdk|minSdkVersion|targetSdkVersion"
+        echo "===== REBUILT REQUIRED FEATURES ====="
+        aapt dump xmltree patched-app-release.apk AndroidManifest.xml | grep -E -A 3 "E: uses-feature|glEsVersion|E: uses-sdk|minSdkVersion|targetSdkVersion"
+
     - name: Upload Patched APK as Artifact
       uses: actions/upload-artifact@v4
       with:
