@@ -141,6 +141,11 @@ for permission in (
     print(f"REMOVED: manifest permission {permission}")
 MANIFEST.write_text(manifest_text, encoding="utf-8")
 
+# Suppress the daily permission-status analytics event while completing the worker normally.
+DAILY_ANALYTICS = ROOT / "smali/one/me/android/DailyAnalyticsWorker.smali"
+replace_method(DAILY_ANALYTICS, 'public final d()Lvo9;',
+               '    .locals 1\\n\\n    new-instance v0, Luo9;\\n\\n    invoke-direct {v0}, Luo9;-><init>()V\\n\\n    return-object v0',
+               "disable daily permission-status analytics")
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -157,6 +162,12 @@ for api in ("setTrackingLaunchEnabled(Z)", "setTrackingEnvironmentEnabled(Z)",
             "setAutotrackingPurchaseEnabled(Z)", "setLocationTrackingMode(I)"):
     if api not in config:
         raise SystemExit(f"FAIL: MyTrackerConfig API missing: {api}")
+data = DAILY_ANALYTICS.read_text(encoding="utf-8")
+pos = data.find(".method public final d()Lvo9;")
+stop = data.find(".end method", pos)
+worker_method = data[pos:stop]
+if pos < 0 or stop < 0 or "Luo9;-><init>()V" not in worker_method or "permission_status" in worker_method or "Lvu9;->i" in worker_method:
+    raise SystemExit("FAIL: daily permission analytics worker is not inert")
 for path, declaration in [
     (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
     (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
