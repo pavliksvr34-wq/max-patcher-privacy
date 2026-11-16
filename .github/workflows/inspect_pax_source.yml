@@ -252,6 +252,36 @@ jobs:
           print((out / "INDEX.txt").read_text())
           PY
 
+      - name: Collect privacy-sensitive implementation methods
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, shutil
+          root = Path("apk_workdir")
+          out = Path("privacy_methods")
+          out.mkdir(exist_ok=True)
+          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali"}
+          copied = []
+          for src in root.rglob("*.smali"):
+              if src.name in targets:
+                  dst = out / (str(len(copied)) + "_" + src.name)
+                  shutil.copy2(src, dst)
+                  copied.append(f"{src} -> {dst}")
+          with (out / "callers.txt").open("w") as f:
+              rx = re.compile(r"AdvertisingIdClient|AppSetIdClient|FirebaseInstallations|FirebaseAnalytics|Analytics|trackEvent|getInstalledPackages|RootBeer|isRooted", re.I)
+              for src in root.rglob("*.smali"):
+                  try: lines = src.read_text(errors="ignore").splitlines()
+                  except OSError: continue
+                  for i, line in enumerate(lines):
+                      if rx.search(line):
+                          lo, hi = max(0, i-8), min(len(lines), i+12)
+                          f.write(f"\\n===== {src}:{i+1} =====\\n")
+                          f.write("\\n".join(f"{j+1}: {lines[j]}" for j in range(lo, hi)) + "\\n")
+          (out / "INDEX.txt").write_text("\\n".join(copied), encoding="utf-8")
+          print(f"Copied {len(copied)} focused privacy implementation classes")
+          PY
+
       - name: Build full privacy inventory
         if: always()
         run: |
@@ -312,5 +342,6 @@ jobs:
             mytracker_boundary_report.txt
             tracker_source/
             privacy_inventory.txt
+            privacy_methods/
             apkm/info.json
           if-no-files-found: warn
