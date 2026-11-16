@@ -201,6 +201,82 @@ replace_method(ROOT_ENV_CHECK, 'public static final M(Landroid/content/Context;)
                '    .locals 1\n\n    const/4 v0, 0x0\n\n    return v0',
                "disable root/emulator environment check")
 
+# Disable the central in-app analytics event dispatcher.
+APP_ANALYTICS = ROOT / "smali/vu9.smali"
+replace_method(APP_ANALYTICS, 'public final h(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V',
+               '    .locals 0\\n\\n    return-void',
+               "disable central app analytics event dispatcher")
+
+# Disable call diagnostics upload, without touching call signaling or media services.
+CALL_UPLOAD = ROOT / "smali_classes3/ru/ok/android/externcalls/analytics/internal/upload/UploadService.smali"
+replace_method(CALL_UPLOAD, 'public static a(Landroid/content/Intent;)V',
+               '    .locals 0\\n\\n    return-void', "disable call analytics upload scheduling")
+replace_method(CALL_UPLOAD, 'public final onHandleWork(Landroid/content/Intent;)V',
+               '    .locals 0\\n\\n    return-void', "disable call analytics upload worker")
+
+# Disable OneLog collection and all of its network upload entry points.
+ONELOG_IMPL = ROOT / "smali/ru/ok/android/onelog/OneLogImpl.smali"
+for declaration, label in [
+    ('public static upload(Ljava/lang/String;Lru/ok/android/onelog/OneLogTrigger;)V', "static upload"),
+    ('public append(Lru/ok/android/onelog/OneLogItem;)V', "append"),
+    ('public upload(Ljava/util/Collection;)V', "upload collection"),
+    ('public upload(Lru/ok/android/onelog/OneLogItem;)V', "upload item"),
+]:
+    replace_method(ONELOG_IMPL, declaration, '    .locals 0\\n\\n    return-void',
+                   "disable OneLog " + label)
+
+ONELOG_UPLOAD = ROOT / "smali_classes3/ru/ok/android/onelog/UploadService.smali"
+replace_method(ONELOG_UPLOAD, 'public static startUpload(Ljava/lang/String;)V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog upload scheduling")
+replace_method(ONELOG_UPLOAD, 'public static startUpload(Ljava/lang/String;Lru/ok/android/onelog/OneLogTrigger;)V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog upload scheduling with trigger")
+replace_method(ONELOG_UPLOAD, 'public onHandleWork(Landroid/content/Intent;)V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog upload worker")
+
+ONELOG_DIRECT = ROOT / "smali_classes3/ru/ok/android/onelog/OneLogDirect.smali"
+replace_method(ONELOG_DIRECT, 'public final flush()V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog direct flush")
+replace_method(ONELOG_DIRECT, 'private final send-B_83SRM(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;Lps7;)V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog direct sender")
+replace_method(ONELOG_DIRECT, 'public final send-PCEVtD0(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;)V',
+               '    .locals 0\\n\\n    return-void', "disable OneLog direct event sender")
+
+# Disable RuStore metrics background job. This does not affect app-store updates or push.
+RUSTORE_METRICS = ROOT / "smali/ru/rustore/sdk/metrics/internal/presentation/SendMetricsEventJobService.smali"
+replace_method(RUSTORE_METRICS, 'public final onStartJob(Landroid/app/job/JobParameters;)Z',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               "disable RuStore metrics job")
+replace_method(RUSTORE_METRICS, 'public final onStopJob(Landroid/app/job/JobParameters;)Z',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               "disable RuStore metrics reschedule")
+
+# Remove the three telemetry-only background services from the manifest.
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+def remove_manifest_service(text, class_name):
+    lines = text.splitlines(keepends=True)
+    starts = [i for i,line in enumerate(lines)
+              if '<service' in line and f'android:name="{class_name}"' in line]
+    if len(starts) != 1:
+        raise SystemExit(f"FAIL: expected one service {class_name}, got {len(starts)}")
+    start = starts[0]
+    if '/>' in lines[start]:
+        end = start
+    else:
+        ends = [i for i in range(start, len(lines)) if '</service>' in lines[i]]
+        if not ends:
+            raise SystemExit(f"FAIL: service closing tag missing: {class_name}")
+        end = ends[0]
+    del lines[start:end+1]
+    print(f"REMOVED: manifest service {class_name}")
+    return "".join(lines)
+for class_name in (
+    "ru.ok.android.externcalls.analytics.internal.upload.UploadService",
+    "ru.ok.android.onelog.UploadService",
+    "ru.rustore.sdk.metrics.internal.presentation.SendMetricsEventJobService",
+):
+    manifest_text = remove_manifest_service(manifest_text, class_name)
+MANIFEST.write_text(manifest_text, encoding="utf-8")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -250,6 +326,35 @@ for path, declaration, token in [
     stop = data.find(".end method", pos)
     if pos < 0 or stop < 0 or token not in data[pos:stop] or "invoke-" in data[pos:stop]:
         raise SystemExit(f"FAIL: root detection remains active: {declaration}")
+# Verify central app analytics and telemetry upload paths are inert.
+for path, declarations in [
+    (APP_ANALYTICS, ['public final h(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V']),
+    (CALL_UPLOAD, ['public static a(Landroid/content/Intent;)V',
+                   'public final onHandleWork(Landroid/content/Intent;)V']),
+    (ONELOG_IMPL, ['public static upload(Ljava/lang/String;Lru/ok/android/onelog/OneLogTrigger;)V',
+                   'public append(Lru/ok/android/onelog/OneLogItem;)V',
+                   'public upload(Ljava/util/Collection;)V',
+                   'public upload(Lru/ok/android/onelog/OneLogItem;)V']),
+    (ONELOG_UPLOAD, ['public static startUpload(Ljava/lang/String;)V',
+                     'public static startUpload(Ljava/lang/String;Lru/ok/android/onelog/OneLogTrigger;)V',
+                     'public onHandleWork(Landroid/content/Intent;)V']),
+    (ONELOG_DIRECT, ['public final flush()V',
+                     'private final send-B_83SRM(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;Lps7;)V',
+                     'public final send-PCEVtD0(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;)V']),
+]:
+    data = path.read_text(encoding="utf-8")
+    for declaration in declarations:
+        pos = data.find(".method " + declaration)
+        stop = data.find(".end method", pos)
+        if pos < 0 or stop < 0 or "return-void" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+            raise SystemExit(f"FAIL: telemetry sender remains active: {declaration}")
+for class_name in (
+    "ru.ok.android.externcalls.analytics.internal.upload.UploadService",
+    "ru.ok.android.onelog.UploadService",
+    "ru.rustore.sdk.metrics.internal.presentation.SendMetricsEventJobService",
+):
+    if class_name in MANIFEST.read_text(encoding="utf-8"):
+        raise SystemExit(f"FAIL: telemetry service remains in manifest: {class_name}")
 for path, declaration in [
     (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
     (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
