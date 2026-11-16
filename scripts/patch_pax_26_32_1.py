@@ -204,15 +204,15 @@ replace_method(ROOT_ENV_CHECK, 'public static final M(Landroid/content/Context;)
 # Disable the central in-app analytics event dispatcher.
 APP_ANALYTICS = ROOT / "smali/vu9.smali"
 replace_method(APP_ANALYTICS, 'public final h(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V',
-               '    .locals 0\\n\\n    return-void',
+               '    .locals 0\n\n    return-void',
                "disable central app analytics event dispatcher")
 
 # Disable call diagnostics upload, without touching call signaling or media services.
 CALL_UPLOAD = ROOT / "smali_classes3/ru/ok/android/externcalls/analytics/internal/upload/UploadService.smali"
 replace_method(CALL_UPLOAD, 'public static a(Landroid/content/Intent;)V',
-               '    .locals 0\\n\\n    return-void', "disable call analytics upload scheduling")
+               '    .locals 0\n\n    return-void', "disable call analytics upload scheduling")
 replace_method(CALL_UPLOAD, 'public final onHandleWork(Landroid/content/Intent;)V',
-               '    .locals 0\\n\\n    return-void', "disable call analytics upload worker")
+               '    .locals 0\n\n    return-void', "disable call analytics upload worker")
 
 # Disable OneLog collection and all of its network upload entry points.
 ONELOG_IMPL = ROOT / "smali/ru/ok/android/onelog/OneLogImpl.smali"
@@ -222,32 +222,32 @@ for declaration, label in [
     ('public upload(Ljava/util/Collection;)V', "upload collection"),
     ('public upload(Lru/ok/android/onelog/OneLogItem;)V', "upload item"),
 ]:
-    replace_method(ONELOG_IMPL, declaration, '    .locals 0\\n\\n    return-void',
+    replace_method(ONELOG_IMPL, declaration, '    .locals 0\n\n    return-void',
                    "disable OneLog " + label)
 
 ONELOG_UPLOAD = ROOT / "smali_classes3/ru/ok/android/onelog/UploadService.smali"
 replace_method(ONELOG_UPLOAD, 'public static startUpload(Ljava/lang/String;)V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog upload scheduling")
+               '    .locals 0\n\n    return-void', "disable OneLog upload scheduling")
 replace_method(ONELOG_UPLOAD, 'public static startUpload(Ljava/lang/String;Lru/ok/android/onelog/OneLogTrigger;)V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog upload scheduling with trigger")
+               '    .locals 0\n\n    return-void', "disable OneLog upload scheduling with trigger")
 replace_method(ONELOG_UPLOAD, 'public onHandleWork(Landroid/content/Intent;)V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog upload worker")
+               '    .locals 0\n\n    return-void', "disable OneLog upload worker")
 
 ONELOG_DIRECT = ROOT / "smali_classes3/ru/ok/android/onelog/OneLogDirect.smali"
 replace_method(ONELOG_DIRECT, 'public final flush()V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog direct flush")
+               '    .locals 0\n\n    return-void', "disable OneLog direct flush")
 replace_method(ONELOG_DIRECT, 'private final send-B_83SRM(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;Lps7;)V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog direct sender")
+               '    .locals 0\n\n    return-void', "disable OneLog direct sender")
 replace_method(ONELOG_DIRECT, 'public final send-PCEVtD0(Lru/ok/android/onelog/OneLogItem;Ljava/lang/String;)V',
-               '    .locals 0\\n\\n    return-void', "disable OneLog direct event sender")
+               '    .locals 0\n\n    return-void', "disable OneLog direct event sender")
 
 # Disable RuStore metrics background job. This does not affect app-store updates or push.
 RUSTORE_METRICS = ROOT / "smali/ru/rustore/sdk/metrics/internal/presentation/SendMetricsEventJobService.smali"
 replace_method(RUSTORE_METRICS, 'public final onStartJob(Landroid/app/job/JobParameters;)Z',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return v0',
                "disable RuStore metrics job")
 replace_method(RUSTORE_METRICS, 'public final onStopJob(Landroid/app/job/JobParameters;)Z',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return v0',
                "disable RuStore metrics reschedule")
 
 # Remove the three telemetry-only background services from the manifest.
