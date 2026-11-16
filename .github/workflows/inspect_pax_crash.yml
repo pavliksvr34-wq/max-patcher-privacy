@@ -47,7 +47,7 @@ jobs:
           from pathlib import Path
           root=Path("decoded")
           out=[]
-          for wanted in ("q7i.smali","dr4.smali"):
+          for wanted in ("q7i.smali","dr4.smali","bu5.smali"):
               found=list(root.rglob(wanted))
               out.append(f"===== FILE {wanted}: {len(found)} matches =====")
               for p in found:
@@ -58,11 +58,16 @@ jobs:
                           if line.startswith(".method ") and " y0(" in line and "Ljava/lang/CharSequence;" in line:
                               a=max(0,i-3); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
-                  else:
+                  elif wanted=="dr4.smali":
                       for i,line in enumerate(lines):
                           if (line.startswith(".method ") and " v(" in line) or "Lq7i;->y0" in line:
                               a=max(0,i-12); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
+                  else:
+                      for i,line in enumerate(lines):
+                          if line.startswith(".method ") and " a(Lbx4;)Ljava/lang/Object;" in line:
+                              end=next((j for j in range(i+1,len(lines)) if lines[j]==".end method"),len(lines)-1)
+                              out.extend(f"{j+1}: {lines[j]}" for j in range(i,end+1))
           # All direct references to q7i.y0, including caller method declarations.
           out.append("===== ALL q7i.y0 CALLERS =====")
           for p in root.rglob("*.smali"):
