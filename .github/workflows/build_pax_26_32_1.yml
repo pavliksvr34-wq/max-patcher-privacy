@@ -84,6 +84,26 @@ jobs:
           python -m pip install --disable-pip-version-check Pillow
           python scripts/apply_pax_branding.py
 
+      - name: Restore stripped Material attribute for resource linking
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root = Path("apk_workdir/res/values")
+          root.mkdir(parents=True, exist_ok=True)
+          files = list(root.glob("*.xml"))
+          if not any('name="state_dragged"' in p.read_text(errors="ignore") for p in files):
+              (root / "pax_missing_attrs.xml").write_text(
+                  '<?xml version="1.0" encoding="utf-8"?>\\n'
+                  '<resources>\\n'
+                  '    <attr name="state_dragged" format="boolean" />\\n'
+                  '</resources>\\n',
+                  encoding="utf-8"
+              )
+              print("Restored missing state_dragged attribute declaration")
+          else:
+              print("state_dragged declaration already present")
+          PY
+
       - name: Rebuild base APK
         run: |
           apktool b apk_workdir -o base-rebuilt-unsigned.apk
