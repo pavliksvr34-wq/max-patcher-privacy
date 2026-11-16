@@ -1,0 +1,129 @@
+name: Build PAX 26.32.1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download and validate original APKM
+        env:
+          SOURCE_URL: ${{ secrets.PAX_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_URL"
+          python - <<'PY'
+          import os, urllib.parse, urllib.request
+          u = os.environ["SOURCE_URL"]
+          p = urllib.parse.urlsplit(u)
+          q = urllib.parse.parse_qs(p.query)
+          q["dl"] = ["1"]
+          u = urllib.parse.urlunsplit((p.scheme,p.netloc,p.path,urllib.parse.urlencode(q,doseq=True),p.fragment))
+          req = urllib.request.Request(u, headers={"User-Agent":"PAX-build/1.0"})
+          with urllib.request.urlopen(req, timeout=90) as r, open("source.apkm","wb") as f:
+              while True:
+                  b=r.read(1024*1024)
+                  if not b: break
+                  f.write(b)
+          PY
+          python - <<'PY'
+          import zipfile, json
+          z=zipfile.ZipFile("source.apkm")
+          names=z.namelist()
+          assert "base.apk" in names, names
+          info=json.loads(z.read("info.json"))
+          assert info.get("pname")=="ru.oneme.app", info
+          assert str(info.get("versioncode"))=="6831", info
+          assert info.get("release_version")=="26.32.1", info
+          z.extractall("source")
+          apks=[n for n in names if n.endswith(".apk")]
+          print("Validated MAX 26.32.1 / 6831; APK entries:", apks)
+          PY
+
+      - name: Set up Java and Android tools
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Add build tools to PATH
+        run: echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
+
+      - name: Install Apktool
+        run: |
+          curl -fsSL https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o apktool.jar
+          printf '#!/bin/sh\nexec java -jar "$GITHUB_WORKSPACE/apktool.jar" "$@"\n' > apktool
+          chmod +x apktool
+          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+
+      - name: Decode base APK
+        run: apktool d source/base.apk -f -o apk_workdir
+
+      - name: Apply strict PAX privacy patch
+        run: python scripts/patch_pax_26_32_1.py
+
+      - name: Apply PAX branding
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          python scripts/apply_pax_branding.py
+
+      - name: Rebuild base APK
+        run: |
+          apktool b apk_workdir -o base-rebuilt-unsigned.apk
+          zipalign -f -v 4 base-rebuilt-unsigned.apk base-rebuilt-aligned.apk
+
+      - name: Generate temporary signing key
+        run: |
+          keytool -genkeypair -v -keystore pax-test.keystore -alias pax -keyalg RSA -keysize 2048 -validity 10000 -storepass pax-temporary -keypass pax-temporary -dname "CN=PAX Test, OU=Build, O=PAX, L=Unknown, ST=Unknown, C=RU"
+
+      - name: Sign all APK splits with the same key
+        run: |
+          set -euo pipefail
+          mkdir -p output
+          cp source/info.json output/info.json
+          cp base-rebuilt-aligned.apk output/base.apk
+          for f in source/*.apk; do
+            [ "$(basename "$f")" = "base.apk" ] && continue
+            cp "$f" "output/$(basename "$f")"
+          done
+          for f in output/*.apk; do
+            apksigner sign --ks pax-test.keystore --ks-key-alias pax --ks-pass pass:pax-temporary --key-pass pass:pax-temporary "$f"
+            apksigner verify --verbose "$f"
+          done
+          zip -9 -j PAX-26.32.1-6831.apkm output/*
+
+      - name: Verify APKM package and signatures
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import zipfile, json
+          z=zipfile.ZipFile("PAX-26.32.1-6831.apkm")
+          info=json.loads(z.read("info.json"))
+          assert info["pname"]=="ru.oneme.app" and str(info["versioncode"])=="6831"
+          apks=[n for n in z.namelist() if n.endswith(".apk")]
+          assert "base.apk" in apks and len(apks)>=2, apks
+          print("Final APKM entries:", apks)
+          print("Metadata:", info["apk_title"])
+          PY
+          unzip -p PAX-26.32.1-6831.apkm base.apk > /tmp/pax-base.apk
+          aapt dump badging /tmp/pax-base.apk | grep -E '^(package:|sdkVersion:|targetSdkVersion:)'
+          apksigner verify --verbose /tmp/pax-base.apk
+          sha256sum PAX-26.32.1-6831.apkm
+
+      - name: Upload PAX test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PAX-26.32.1-6831-test
+          path: PAX-26.32.1-6831.apkm
+          if-no-files-found: error
+          retention-days: 30
