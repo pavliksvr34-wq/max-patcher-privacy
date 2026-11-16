@@ -176,6 +176,44 @@ jobs:
           print(f"Scanned {len(files)} smali files; wrote {len(out)} matching sections")
           PY
 
+      - name: Extract MyTracker initialization and network boundaries
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("apk_workdir")
+          out = []
+          targets = ["d6.smali", "rel.smali", "ctb.smali", "pal.smali", "ssb.smali"]
+          for name in targets:
+              matches = list(root.rglob(name))
+              for path in matches:
+                  lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+                  out.append(f"\\n===== {path.as_posix()} =====")
+                  for i, line in enumerate(lines):
+                      if line.startswith(".method "):
+                          end = i + 1
+                          while end < len(lines) and not lines[end].startswith(".end method"):
+                              end += 1
+                          block = lines[i:min(end + 1, len(lines))]
+                          joined = "\\n".join(block)
+                          if re.search(r"MyTracker|tracker-api|trackLogin|trackRegistration|initTracker|InstanceId|Attribution", joined, re.I):
+                              out.append("\\n".join(f"{j+1}: {x}" for j, x in enumerate(block, i)))
+          endpoints = []
+          for path in root.rglob("*.smali"):
+              try: lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+              except OSError: continue
+              for i, line in enumerate(lines):
+                  if re.search(r"https?://|wss?://", line, re.I):
+                      if re.search(r"tracker|analytics|telemetry|metric|stat", line, re.I):
+                          endpoints.append(f"{path.as_posix()}:{i+1}: {line.strip()[:350]}")
+          out.append("\\n===== TRACKER / ANALYTICS ENDPOINT STRINGS =====")
+          out.extend(endpoints)
+          Path("mytracker_boundary_report.txt").write_text("\\n".join(out), encoding="utf-8")
+          print(f"Extracted {len(out)} report sections/lines")
+          PY
+
       - name: Upload inspection report
         if: always()
         uses: actions/upload-artifact@v4
@@ -184,5 +222,6 @@ jobs:
           path: |
             patch_compatibility.txt
             source_symbol_report.txt
+            mytracker_boundary_report.txt
             apkm/info.json
           if-no-files-found: warn
