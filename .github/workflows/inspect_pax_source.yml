@@ -261,7 +261,7 @@ jobs:
           root = Path("apk_workdir")
           out = Path("privacy_methods")
           out.mkdir(exist_ok=True)
-          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali","h2j.smali","rgl.smali","val.smali","y18.smali","w18.smali","x8l.smali","d8k.smali","qji.smali","ktf.smali","dql.smali","xtb.smali","fpm.smali","gam.smali","ptm.smali","eii.smali","tnb.smali","wzf.smali","esl.smali","ad8.smali","nul.smali","h88.smali","Analytics.smali","AnalyticsEventEnricher.smali","FcmAnalyticsDao.smali","vu9.smali","UploadService.smali","snb.smali","wzf.smali","eii.smali","vu9.smali","r9f.smali","OneLogImpl.smali","Collector.smali","SendMetricsEventJobService.smali"}
+          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali","h2j.smali","rgl.smali","val.smali","y18.smali","w18.smali","x8l.smali","d8k.smali","qji.smali","ktf.smali","dql.smali","xtb.smali","fpm.smali","gam.smali","ptm.smali","eii.smali","tnb.smali","wzf.smali","esl.smali","ad8.smali","nul.smali","h88.smali","Analytics.smali","AnalyticsEventEnricher.smali","FcmAnalyticsDao.smali","vu9.smali","UploadService.smali","snb.smali","wzf.smali","eii.smali","vu9.smali","r9f.smali","OneLogImpl.smali","Collector.smali","SendMetricsEventJobService.smali","h84.smali","bz6.smali","cz6.smali","x4c.smali","nal.smali","kal.smali","kgl.smali","hel.smali","g6l.smali","d83.smali","iw9.smali","pqb.smali","q89.smali","frc.smali","z5m.smali"}
           copied = []
           for src in root.rglob("*.smali"):
               if src.name in targets:
@@ -269,7 +269,7 @@ jobs:
                   shutil.copy2(src, dst)
                   copied.append(f"{src} -> {dst}")
           with (out / "callers.txt").open("w") as f:
-              rx = re.compile(r"AdvertisingIdClient|AppSetIdClient|FirebaseInstallations|FirebaseAnalytics|Analytics|trackEvent|getInstalledPackages|RootBeer|isRooted|Lbu5;|Lygk;|Lx18;|Ly18;|Ldql;|Lxtb;|Lfpm;|Lgam;|Lptm;|Lesl;|Lad8;|Lh88;|Lvu9;|Lr9f;|Lwzf;|Leii;|Lru/ok/android/onelog|Lru/rustore/sdk/metrics|MyTracker;->getInstanceId", re.I)
+              rx = re.compile(r"AdvertisingIdClient|AppSetIdClient|FirebaseInstallations|FirebaseAnalytics|Analytics|trackEvent|getInstalledPackages|RootBeer|isRooted|Lbu5;|Lygk;|Lx18;|Ly18;|Ldql;|Lxtb;|Lfpm;|Lgam;|Lptm;|Lesl;|Lad8;|Lh88;|Lvu9;|Lr9f;|Lwzf;|Leii;|Lnal;|Lkal;|Lkgl;|Lhel;|Lg6l;|Ld83;|Liw9;|Lpqb;|Lq89;|Lh84;|Lbz6;|Lcz6;|Lx4c;|Lru/ok/android/onelog|Lru/rustore/sdk/metrics|MyTracker;->getInstanceId", re.I)
               for src in root.rglob("*.smali"):
                   try: lines = src.read_text(errors="ignore").splitlines()
                   except OSError: continue
