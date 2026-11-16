@@ -178,6 +178,29 @@ manifest_text = "".join(line for line in manifest_lines if line not in tracer_pr
 MANIFEST.write_text(manifest_text, encoding="utf-8")
 print("REMOVED: Tracer SDK startup provider and 7 diagnostic initializers")
 
+# Prevent the app from exposing its VKPNS device identifier to other apps.
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+manifest_lines = manifest_text.splitlines(keepends=True)
+provider_matches = [line for line in manifest_lines
+                    if '<provider' in line and 'android:name="com.vk.push.core.deviceid.contentprovider.VkpnsDeviceIdContentProvider"' in line]
+if len(provider_matches) != 1 or 'android:exported="true"' not in provider_matches[0]:
+    raise SystemExit(f"FAIL: unexpected VKPNS provider declaration: {len(provider_matches)}")
+manifest_text = manifest_text.replace(provider_matches[0],
+                                      provider_matches[0].replace('android:exported="true"', 'android:exported="false"', 1),
+                                      1)
+MANIFEST.write_text(manifest_text, encoding="utf-8")
+print("PATCHED: VKPNS device-ID provider is no longer exported")
+
+# Disable active root/emulator-detection result providers.
+ROOT_CHECK = ROOT / "smali/dql.smali"
+replace_method(ROOT_CHECK, 'static constructor <clinit>()V',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    sput v0, Ldql;->a:I\\n\\n    return-void',
+               "disable root-check static detector")
+ROOT_ENV_CHECK = ROOT / "smali/xtb.smali"
+replace_method(ROOT_ENV_CHECK, 'public static final M(Landroid/content/Context;)Z',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               "disable root/emulator environment check")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -213,6 +236,20 @@ for path, declaration, token in [
 manifest_text = MANIFEST.read_text(encoding="utf-8")
 if "ru.ok.tracer.startup.InitializationProvider" in manifest_text or "ru.ok.tracer.startup.Initializer@" in manifest_text:
     raise SystemExit("FAIL: Tracer SDK startup metadata remains")
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+provider_matches = [line for line in manifest_text.splitlines()
+                    if '<provider' in line and 'android:name="com.vk.push.core.deviceid.contentprovider.VkpnsDeviceIdContentProvider"' in line]
+if len(provider_matches) != 1 or 'android:exported="false"' not in provider_matches[0]:
+    raise SystemExit("FAIL: VKPNS device-ID provider is still exported")
+for path, declaration, token in [
+    (ROOT_CHECK, 'static constructor <clinit>()V', 'sput v0, Ldql;->a:I'),
+    (ROOT_ENV_CHECK, 'public static final M(Landroid/content/Context;)Z', 'return v0'),
+]:
+    data = path.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or token not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: root detection remains active: {declaration}")
 for path, declaration in [
     (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
     (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
