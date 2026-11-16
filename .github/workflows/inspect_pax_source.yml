@@ -1,0 +1,152 @@
+name: Inspect MAX source for PAX
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download MAX APKM from Dropbox
+        env:
+          PAX_SOURCE_URL: ${{ secrets.PAX_SOURCE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PAX_SOURCE_URL:-}" ]; then
+            echo "::error::Repository secret PAX_SOURCE_URL is not configured"
+            exit 1
+          fi
+          DOWNLOAD_URL="$(python - <<'PY'
+          import os
+          from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+          value = os.environ["PAX_SOURCE_URL"]
+          parts = urlsplit(value)
+          query = dict(parse_qsl(parts.query, keep_blank_values=True))
+          query["dl"] = "1"
+          print(urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), "")))
+          PY
+          )"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            --output MAX_26.32.1_6831.apkm "$DOWNLOAD_URL"
+          test "$(stat -c%s MAX_26.32.1_6831.apkm)" -gt 30000000
+          sha256sum MAX_26.32.1_6831.apkm
+
+      - name: Validate APKM and inspect split metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t MAX_26.32.1_6831.apkm
+          mkdir apkm
+          unzip -q MAX_26.32.1_6831.apkm -d apkm
+          echo "===== APKM FILES ====="
+          find apkm -maxdepth 2 -type f -printf '%P %s bytes\\n' | sort
+          echo "===== APKM INFO ====="
+          if [ -f apkm/info.json ]; then cat apkm/info.json; else echo "::error::info.json missing"; exit 1; fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("apkm/info.json")
+          data = json.loads(p.read_text())
+          print("Parsed metadata:", json.dumps(data, ensure_ascii=False, indent=2))
+          text = json.dumps(data).lower()
+          if "ru.oneme.app" not in text or "6831" not in text:
+              raise SystemExit("APKM metadata does not identify ru.oneme.app versionCode 6831")
+          apks = sorted(Path("apkm").glob("*.apk"))
+          if not apks:
+              raise SystemExit("No APK files found inside APKM")
+          print("APK count:", len(apks))
+          PY
+          for apk in apkm/*.apk; do
+            echo "===== $apk ====="
+            aapt dump badging "$apk" | grep -E '^(package:|sdkVersion:|targetSdkVersion:|native-code:)' || true
+          done
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;34.0.0'
+
+      - name: Add Android build tools to PATH
+        run: echo "${ANDROID_HOME}/build-tools/34.0.0" >> "$GITHUB_PATH"
+
+      - name: Install Apktool
+        run: |
+          curl --fail --location --retry 3 \
+            https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.10.0.jar \
+            --output apktool.jar
+          printf '#!/usr/bin/env bash\\nexec java -jar "$GITHUB_WORKSPACE/apktool.jar" "$@"\\n' > apktool
+          chmod +x apktool
+          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+
+      - name: Decode base APK
+        run: |
+          set -euo pipefail
+          BASE="$(find apkm -maxdepth 1 -name 'base.apk' -print -quit)"
+          test -n "$BASE"
+          apktool d "$BASE" -f -o apk_workdir
+
+      - name: Check existing patch compatibility without modifying files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import glob
+
+          smali_files = [Path(p) for p in glob.glob("apk_workdir/**/*.smali", recursive=True)]
+          originals = sorted(Path("patches/original").glob("*.smali-snippet"))
+          patched = {p.name for p in Path("patches/patched").glob("*.smali-snippet")}
+          print(f"Smali files decoded: {len(smali_files)}")
+          print(f"Original patch snippets: {len(originals)}")
+          print(f"Patched snippets: {len(patched)}")
+          missing_pairs = [p.name for p in originals if p.name not in patched]
+          if missing_pairs:
+              raise SystemExit("Patch pairs missing: " + ", ".join(missing_pairs))
+          corpus = []
+          for path in smali_files:
+              try:
+                  corpus.append((path, path.read_text(encoding="utf-8")))
+              except UnicodeDecodeError:
+                  pass
+          matched = []
+          unmatched = []
+          for patch in originals:
+              snippet = patch.read_text(encoding="utf-8")
+              hits = [(p, text.count(snippet)) for p, text in corpus if snippet in text]
+              count = sum(n for _, n in hits)
+              (matched if count else unmatched).append((patch.name, count, [p.as_posix() for p, n in hits]))
+          print("\\n===== PATCH MATCH REPORT =====")
+          for name, count, paths in matched:
+              print(f"MATCH {count:>3}  {name}  {', '.join(paths[:3])}")
+          for name, count, _ in unmatched:
+              print(f"NO MATCH      {name}")
+          print(f"\\nMatched snippets: {len(matched)}/{len(originals)}")
+          print(f"Unmatched snippets: {len(unmatched)}")
+          if not matched:
+              raise SystemExit("No existing patches match this MAX version")
+          Path("patch_compatibility.txt").write_text(
+              "\\n".join([f"MATCH {n} {name}" for name, n, _ in matched] +
+                         [f"NO MATCH {name}" for name, _, _ in unmatched]),
+              encoding="utf-8")
+          PY
+
+      - name: Upload inspection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pax-source-inspection
+          path: |
+            patch_compatibility.txt
+            apkm/info.json
+          if-no-files-found: warn
