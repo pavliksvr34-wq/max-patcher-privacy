@@ -93,10 +93,10 @@ jobs:
           files = list(root.glob("*.xml"))
           if not any('name="state_dragged"' in p.read_text(errors="ignore") for p in files):
               (root / "pax_missing_attrs.xml").write_text(
-                  '<?xml version="1.0" encoding="utf-8"?>\\n'
-                  '<resources>\\n'
-                  '    <attr name="state_dragged" format="boolean" />\\n'
-                  '</resources>\\n',
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<resources>\n'
+                  '    <attr name="state_dragged" format="boolean" />\n'
+                  '</resources>\n',
                   encoding="utf-8"
               )
               print("Restored missing state_dragged attribute declaration")
