@@ -300,7 +300,7 @@ for declaration, label in [
     ('public final i(Ljava/io/File;)V', "local analytics file collection"),
     ('public final m()V', "file upload loop"),
 ]:
-    replace_method(CALL_ANALYTICS_V2, declaration, '    .locals 0\\n\\n    return-void',
+    replace_method(CALL_ANALYTICS_V2, declaration, '    .locals 0\n\n    return-void',
                    "disable CallAnalyticsUploaderV2 " + label)
 
 # Verify the account-ID setter itself is now inert. The MAX call site remains
