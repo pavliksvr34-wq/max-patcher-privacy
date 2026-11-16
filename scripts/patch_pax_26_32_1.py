@@ -324,7 +324,7 @@ for declaration, label in [
 MYTRACKER_DEVICE_REPORT = ROOT / "smali/ktf.smali"
 replace_method(MYTRACKER_DEVICE_REPORT,
                'public declared-synchronized d(Lo91;Lg2j;Lee4;JJLnk6;)V',
-               '    .locals 0\\n\\n    return-void',
+               '    .locals 0\n\n    return-void',
                "disable MyTracker device/session report serialization")
 
 # Verify the account-ID setter itself is now inert. The MAX call site remains
