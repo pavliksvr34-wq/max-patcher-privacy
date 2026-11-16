@@ -160,7 +160,7 @@ replace_method(HOST_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr
                "disable HostAnalyticsSender upload")
 
 # Suppress call-quality telemetry event; this is separate from call setup/media.
-CALL_ANALYTICS = ROOT / "smali/h88.smali"
+CALL_ANALYTICS = ROOT / "smali_classes2/h88.smali"
 replace_method(CALL_ANALYTICS, 'public static X(Lme1;)V',
                '    .locals 0\n\n    return-void',
                "disable vchat.clientStats analytics event")
