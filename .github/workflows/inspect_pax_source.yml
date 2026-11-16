@@ -261,7 +261,7 @@ jobs:
           root = Path("apk_workdir")
           out = Path("privacy_methods")
           out.mkdir(exist_ok=True)
-          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali","h2j.smali","rgl.smali","val.smali","y18.smali","w18.smali","x8l.smali"}
+          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali","h2j.smali","rgl.smali","val.smali","y18.smali","w18.smali","x8l.smali","d8k.smali","qji.smali","ktf.smali"}
           copied = []
           for src in root.rglob("*.smali"):
               if src.name in targets:
@@ -278,6 +278,22 @@ jobs:
                           lo, hi = max(0, i-8), min(len(lines), i+12)
                           f.write(f"\\n===== {src}:{i+1} =====\\n")
                           f.write("\\n".join(f"{j+1}: {lines[j]}" for j in range(lo, hi)) + "\\n")
+          # Include selected app telemetry and tracer implementations.
+          for rel in ["ru/ok/tracer", "ru/trace_flow"]:
+              src = root / "smali" / rel
+              if src.exists():
+                  dst = out / rel.replace("/", "_")
+                  shutil.copytree(src, dst, dirs_exist_ok=True)
+                  copied.append(f"{src} -> {dst}/")
+          named = {"DailyAnalyticsWorker.smali","Analytics.smali","LogController.smali",
+                   "AuthEventStats.smali","CallsNotificationsTracker.smali","PromotedStats.smali",
+                   "OrganizationStats.smali","FcmAnalyticsDao.smali","CallSdkAnalyticsDelegate.smali",
+                   "FakePixelStats.smali"}
+          for src in root.rglob("*.smali"):
+              if src.name in named:
+                  dst = out / ("named_" + str(len(copied)) + "_" + src.name)
+                  shutil.copy2(src, dst)
+                  copied.append(f"{src} -> {dst}")
           (out / "INDEX.txt").write_text("\\n".join(copied), encoding="utf-8")
           print(f"Copied {len(copied)} focused privacy implementation classes")
           PY
@@ -327,6 +343,26 @@ jobs:
                   continue
               if len(parts) >= 3 and parts[0] == "com" and parts[1] not in {"my", "google", "android", "squareup", "facebook", "fasterxml", "airbnb"}:
                   continue
+          from collections import Counter
+          roots = Counter()
+          for path in files:
+              rel = path.relative_to(root / "smali") if str(path).startswith(str(root / "smali") + "/") else path.relative_to(root)
+              parts = rel.parts
+              if len(parts) >= 2 and parts[0] in {"com","org","io","ru","one","androidx","android","kotlin"}:
+                  roots["/".join(parts[:min(3, len(parts)-1)])] += 1
+          out.append("\\n===== PACKAGE ROOT CLASS COUNTS =====")
+          out.extend(f"{name}: {count}" for name,count in roots.most_common())
+          root_rx = re.compile(r"/system/(?:app|bin|xbin)/|/sbin/su|/su/bin|Superuser\\.apk|test-keys|magisk|supersu|busybox|ro\\.debuggable|ro\\.secure|RootBeer|isRooted|checkForSuBinary", re.I)
+          out.append("\\n===== ROOT DETECTION INDICATORS =====")
+          root_hits = []
+          for path in files:
+              try: lines = path.read_text(errors="ignore").splitlines()
+              except OSError: continue
+              for i,line in enumerate(lines,1):
+                  if root_rx.search(line):
+                      root_hits.append(f"{path.relative_to(root)}:{i}: {line.strip()[:300]}")
+          out.extend(root_hits[:300])
+          out.append(f"TOTAL ROOT DETECTION INDICATORS: {len(root_hits)}")
           Path("privacy_inventory.txt").write_text("\\n".join(out), encoding="utf-8")
           print(f"Privacy inventory written; decoded smali classes: {len(files)}; lines: {len(out)}")
           PY
