@@ -144,6 +144,38 @@ jobs:
               encoding="utf-8")
           PY
 
+      - name: Locate current analytics and tracker implementations
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("apk_workdir")
+          patterns = re.compile(
+              r"mytracker|my_tracker|callanalytics|analytics|telemetry|"
+              r"trackevent|send.?data|user.?id|root.?check|app.?list",
+              re.IGNORECASE
+          )
+          out = []
+          files = list(root.rglob("*.smali")) if root.exists() else []
+          for path in files:
+              try:
+                  lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+              except OSError:
+                  continue
+              hits = [(i, line.strip()) for i, line in enumerate(lines, 1) if patterns.search(line)]
+              if hits:
+                  out.append(f"\\n### {path.as_posix()}")
+                  out.extend(f"{i}: {line[:300]}" for i, line in hits[:80])
+          report = "\\n".join(out[:2500])
+          Path("source_symbol_report.txt").write_text(
+              f"Decoded smali files: {len(files)}\\n" + report,
+              encoding="utf-8"
+          )
+          print(f"Scanned {len(files)} smali files; wrote {len(out)} matching sections")
+          PY
+
       - name: Upload inspection report
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,5 +183,6 @@ jobs:
           name: pax-source-inspection
           path: |
             patch_compatibility.txt
+            source_symbol_report.txt
             apkm/info.json
           if-no-files-found: warn
