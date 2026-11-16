@@ -224,7 +224,7 @@ jobs:
           root = Path("apk_workdir")
           out = Path("tracker_source")
           out.mkdir(exist_ok=True)
-          names = ["nsb.smali", "rel.smali", "ssb.smali", "kxl.smali", "pal.smali", "ctb.smali"]
+          names = ["nsb.smali", "rel.smali", "ssb.smali", "kxl.smali", "pal.smali", "ctb.smali", "d6.smali"]
           copied = []
           for name in names:
               for src in root.rglob(name):
