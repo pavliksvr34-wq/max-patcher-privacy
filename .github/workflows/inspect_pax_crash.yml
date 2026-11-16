@@ -45,7 +45,6 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           root=Path("decoded")
           out=[]
           for wanted in ("q7i.smali","dr4.smali"):
