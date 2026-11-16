@@ -88,6 +88,14 @@ replace_once(INIT, anchor, insert, "disable MyTracker launch/environment/preinst
 # Disable MyTracker custom events and user lifecycle events.
 TRACKER = ROOT / "smali/com/my/tracker/MyTracker.smali"
 USER_LIFECYCLE = ROOT / "smali/com/my/tracker/userlifecycle/MyTrackerUserLifecycle.smali"
+# Keep MyTracker configuration objects available, but never start its engine.
+replace_method(TRACKER, 'public static initTracker(Ljava/lang/String;Landroid/app/Application;)V',
+               '    .locals 0\\n\\n    return-void', "disable MyTracker engine initialization")
+replace_method(TRACKER, 'public static handleDeeplink(Landroid/content/Intent;)Ljava/lang/String;',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               "disable MyTracker attribution deeplinks")
+replace_method(TRACKER, 'public static flush()V',
+               '    .locals 0\\n\\n    return-void', "disable MyTracker event flush")
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;)V',
                '    .locals 0\n\n    return-void', "disable MyTracker trackEvent(String)")
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;Ljava/util/Map;)V',
@@ -122,6 +130,16 @@ for api in ("setTrackingLaunchEnabled(Z)", "setTrackingEnvironmentEnabled(Z)",
             "setAutotrackingPurchaseEnabled(Z)", "setLocationTrackingMode(I)"):
     if api not in config:
         raise SystemExit(f"FAIL: MyTrackerConfig API missing: {api}")
+for declaration, return_token in [
+    ('public static initTracker(Ljava/lang/String;Landroid/app/Application;)V', 'return-void'),
+    ('public static handleDeeplink(Landroid/content/Intent;)Ljava/lang/String;', 'return-object v0'),
+    ('public static flush()V', 'return-void'),
+]:
+    data = TRACKER.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or return_token not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: MyTracker engine boundary not inert: {declaration}")
 for path, declarations in [
     (TRACKER, [
         'public static trackEvent(Ljava/lang/String;)V',
