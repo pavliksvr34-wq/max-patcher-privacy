@@ -311,5 +311,6 @@ jobs:
             source_symbol_report.txt
             mytracker_boundary_report.txt
             tracker_source/
+            privacy_inventory.txt
             apkm/info.json
           if-no-files-found: warn
