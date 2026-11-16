@@ -194,11 +194,11 @@ print("PATCHED: VKPNS device-ID provider is no longer exported")
 # Disable active root/emulator-detection result providers.
 ROOT_CHECK = ROOT / "smali/dql.smali"
 replace_method(ROOT_CHECK, 'static constructor <clinit>()V',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    sput v0, Ldql;->a:I\\n\\n    return-void',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    sput v0, Ldql;->a:I\n\n    return-void',
                "disable root-check static detector")
 ROOT_ENV_CHECK = ROOT / "smali/xtb.smali"
 replace_method(ROOT_ENV_CHECK, 'public static final M(Landroid/content/Context;)Z',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return v0',
                "disable root/emulator environment check")
 
 # Verify the account-ID setter itself is now inert. The MAX call site remains
