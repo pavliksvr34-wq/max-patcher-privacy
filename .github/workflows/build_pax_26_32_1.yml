@@ -142,9 +142,29 @@ jobs:
           print("Final APKM entries:", apks)
           print("Metadata:", info["apk_title"])
           PY
-          unzip -p PAX-26.32.1-6831.apkm base.apk > /tmp/pax-base.apk
-          aapt dump badging /tmp/pax-base.apk | grep -E '^(package:|sdkVersion:|targetSdkVersion:)'
-          apksigner verify --verbose /tmp/pax-base.apk
+          mkdir -p verify-apks
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("PAX-26.32.1-6831.apkm") as z:
+              for name in z.namelist():
+                  if name.endswith(".apk"):
+                      z.extract(name, "verify-apks")
+          PY
+          reference_cert=""
+          for apk in verify-apks/*.apk; do
+            echo "===== VERIFY $(basename "$apk") ====="
+            apksigner verify --verbose "$apk"
+            cert="$(apksigner verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+            test -n "$cert"
+            if [ -z "$reference_cert" ]; then
+              reference_cert="$cert"
+            elif [ "$cert" != "$reference_cert" ]; then
+              echo "FAIL: APK split signing certificates differ"
+              exit 1
+            fi
+          done
+          echo "PASS: all APK splits have the same signer certificate: $reference_cert"
+          aapt dump badging verify-apks/base.apk | grep -E '^(package:|sdkVersion:|targetSdkVersion:)'
           sha256sum PAX-26.32.1-6831.apkm
 
       - name: Upload PAX test build
