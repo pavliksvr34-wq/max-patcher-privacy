@@ -120,6 +120,21 @@ replace_method(AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Obj
                '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
                "block Google Advertising ID provider")
 
+# Disable Android App Set ID retrieval and callback persistence.
+APP_SET_PROVIDER = ROOT / "smali/gkl.smali"
+replace_method(APP_SET_PROVIDER, 'public final b()V',
+               '    .locals 0\\n\\n    return-void',
+               "disable App Set ID retrieval")
+replace_method(APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V',
+               '    .locals 0\\n\\n    return-void',
+               "disable App Set ID persistence callback")
+
+# Disable Huawei OAID retrieval as a second advertising-ID provider.
+HUAWEI_AD_ID_PROVIDER = ROOT / "smali/zsl.smali"
+replace_method(HUAWEI_AD_ID_PROVIDER, 'public static a(Landroid/app/Application;)Lnpf;',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               "block Huawei OAID retrieval")
+
 # Stop scanning other installed apps for a shared VKPNS device identifier.
 VK_PUSH_PROVIDER = ROOT / "smali/bu5.smali"
 replace_method(VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;',
@@ -394,6 +409,16 @@ for class_name in (
 ):
     if class_name in MANIFEST.read_text(encoding="utf-8"):
         raise SystemExit(f"FAIL: telemetry service remains in manifest: {class_name}")
+for path, declaration in [
+    (APP_SET_PROVIDER, 'public final b()V'),
+    (APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V'),
+    (HUAWEI_AD_ID_PROVIDER, 'public static a(Landroid/app/Application;)Lnpf;'),
+]:
+    data = path.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or "return-" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: identifier provider remains active: {declaration}")
 for path, declaration in [
     (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
     (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
