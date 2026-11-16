@@ -144,7 +144,7 @@ MANIFEST.write_text(manifest_text, encoding="utf-8")
 # Suppress the daily permission-status analytics event while completing the worker normally.
 DAILY_ANALYTICS = ROOT / "smali/one/me/android/DailyAnalyticsWorker.smali"
 replace_method(DAILY_ANALYTICS, 'public final d()Lvo9;',
-               '    .locals 1\\n\\n    new-instance v0, Luo9;\\n\\n    invoke-direct {v0}, Luo9;-><init>()V\\n\\n    return-object v0',
+               '    .locals 1\n\n    new-instance v0, Luo9;\n\n    invoke-direct {v0}, Luo9;-><init>()V\n\n    return-object v0',
                "disable daily permission-status analytics")
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
