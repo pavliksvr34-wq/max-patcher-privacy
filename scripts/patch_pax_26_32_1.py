@@ -17,10 +17,10 @@ def replace_method(path: Path, declaration: str, body: str, label: str):
     end = text.find(".end method", start)
     if end < 0:
         raise SystemExit(f"FAIL: {label}: method terminator missing")
-    header_end = text.find("\\n", start)
+    header_end = text.find("\n", start)
     if header_end < 0:
         raise SystemExit(f"FAIL: {label}: method header malformed")
-    replacement = text[start:header_end + 1] + body + "\\n.end method"
+    replacement = text[start:header_end + 1] + body + "\n.end method"
     text = text[:start] + replacement + text[end + len(".end method"):]
     path.write_text(text, encoding="utf-8")
     print(f"PATCHED: {label}")
