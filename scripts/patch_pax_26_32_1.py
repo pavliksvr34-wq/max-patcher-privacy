@@ -104,6 +104,16 @@ replace_once(INIT, anchor, insert, "disable MyTracker launch/environment/preinst
 # Disable MyTracker custom events and user lifecycle events.
 TRACKER = ROOT / "smali/com/my/tracker/MyTracker.smali"
 USER_LIFECYCLE = ROOT / "smali/com/my/tracker/userlifecycle/MyTrackerUserLifecycle.smali"
+# Remove the embedded MyTracker application key and attribution listener registration.
+replace_once(INIT, 'const-string v2, "34982109644049932883"',
+             'const-string v2, ""', "remove embedded MyTracker app key")
+replace_method(TRACKER, 'public static setAttributionListener(Lpsb;)V',
+               '    .locals 0\n\n    return-void',
+               "disable MyTracker attribution listener")
+replace_method(TRACKER, 'public static setAttributionListener(Lpsb;Landroid/os/Handler;)V',
+               '    .locals 0\n\n    return-void',
+               "disable MyTracker attribution listener overload")
+
 # Keep MyTracker configuration objects available, but never start its engine.
 replace_method(TRACKER, 'public static initTracker(Ljava/lang/String;Landroid/app/Application;)V',
                '    .locals 0\n\n    return-void', "disable MyTracker engine initialization")
