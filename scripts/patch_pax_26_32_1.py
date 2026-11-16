@@ -147,6 +147,37 @@ DAILY_ANALYTICS = ROOT / "smali/one/me/android/DailyAnalyticsWorker.smali"
 replace_method(DAILY_ANALYTICS, 'public final d()Lvo9;',
                '    .locals 1\n\n    new-instance v0, Luo9;\n\n    invoke-direct {v0}, Luo9;-><init>()V\n\n    return-object v0',
                "disable daily permission-status analytics")
+# Disable Firebase Analytics instance-ID retrieval.
+FIREBASE_HELPER = ROOT / "smali/esl.smali"
+replace_method(FIREBASE_HELPER, 'public static a(Landroid/app/Application;Lr9f;)V',
+               '    .locals 0\\n\\n    invoke-static {}, Lr9f;->i()V\\n\\n    return-void',
+               "disable Firebase Analytics app-instance-ID retrieval")
+
+# Suppress host/web-app analytics uploads without affecting their caller flow.
+HOST_ANALYTICS = ROOT / "smali/ad8.smali"
+replace_method(HOST_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;',
+               '    .locals 1\\n\\n    sget-object v0, Lsej;->a:Lsej;\\n\\n    return-object v0',
+               "disable HostAnalyticsSender upload")
+
+# Suppress call-quality telemetry event; this is separate from call setup/media.
+CALL_ANALYTICS = ROOT / "smali_classes3/h88.smali"
+replace_method(CALL_ANALYTICS, 'public static X(Lme1;)V',
+               '    .locals 0\\n\\n    return-void',
+               "disable vchat.clientStats analytics event")
+
+# Disable the independent Tracer SDK startup, including crash/performance/heap/disk collectors.
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+manifest_lines = manifest_text.splitlines(keepends=True)
+tracer_provider = [line for line in manifest_lines
+                   if '<provider' in line and 'android:name="ru.ok.tracer.startup.InitializationProvider"' in line]
+tracer_metadata = [line for line in manifest_lines
+                   if '<meta-data' in line and 'android:name="ru.ok.tracer.startup.Initializer@' in line]
+if len(tracer_provider) != 1 or len(tracer_metadata) != 7:
+    raise SystemExit(f"FAIL: Tracer startup manifest entries changed: provider={len(tracer_provider)}, metadata={len(tracer_metadata)}")
+manifest_text = "".join(line for line in manifest_lines if line not in tracer_provider and line not in tracer_metadata)
+MANIFEST.write_text(manifest_text, encoding="utf-8")
+print("REMOVED: Tracer SDK startup provider and 7 diagnostic initializers")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -169,6 +200,19 @@ stop = data.find(".end method", pos)
 worker_method = data[pos:stop]
 if pos < 0 or stop < 0 or "Luo9;-><init>()V" not in worker_method or "permission_status" in worker_method or "Lvu9;->i" in worker_method:
     raise SystemExit("FAIL: daily permission analytics worker is not inert")
+for path, declaration, token in [
+    (FIREBASE_HELPER, 'public static a(Landroid/app/Application;Lr9f;)V', 'Lr9f;->i()V'),
+    (HOST_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;', 'Lsej;->a:Lsej;'),
+    (CALL_ANALYTICS, 'public static X(Lme1;)V', 'return-void'),
+]:
+    data = path.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or token not in data[pos:stop] or "invoke-" in data[pos:stop] and token != "Lr9f;->i()V":
+        raise SystemExit(f"FAIL: analytics channel remains active: {declaration}")
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+if "ru.ok.tracer.startup.InitializationProvider" in manifest_text or "ru.ok.tracer.startup.Initializer@" in manifest_text:
+    raise SystemExit("FAIL: Tracer SDK startup metadata remains")
 for path, declaration in [
     (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
     (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
