@@ -214,6 +214,33 @@ jobs:
           print(f"Extracted {len(out)} report sections/lines")
           PY
 
+      - name: Collect focused MyTracker source files
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root = Path("apk_workdir")
+          out = Path("tracker_source")
+          out.mkdir(exist_ok=True)
+          names = ["nsb.smali", "rel.smali", "ssb.smali", "kxl.smali", "pal.smali", "ctb.smali"]
+          copied = []
+          for name in names:
+              for src in root.rglob(name):
+                  dst = out / (str(len(copied)) + "_" + name)
+                  shutil.copy2(src, dst)
+                  copied.append((src, dst))
+          pkg = root / "smali" / "com" / "my" / "tracker"
+          if pkg.exists():
+              shutil.copytree(pkg, out / "com_my_tracker", dirs_exist_ok=True)
+          with (out / "INDEX.txt").open("w") as f:
+              for src, dst in copied:
+                  f.write(f"{src} -> {dst}\\n")
+              f.write(f"Tracker package present: {pkg.exists()}\\n")
+          print((out / "INDEX.txt").read_text())
+          PY
+
       - name: Upload inspection report
         if: always()
         uses: actions/upload-artifact@v4
@@ -223,5 +250,6 @@ jobs:
             patch_compatibility.txt
             source_symbol_report.txt
             mytracker_boundary_report.txt
+            tracker_source/
             apkm/info.json
           if-no-files-found: warn
