@@ -164,8 +164,8 @@ replace_method(HUAWEI_AD_ID_PROVIDER, 'public static a(Landroid/app/Application;
 # Stop scanning other installed apps for a shared VKPNS device identifier.
 VK_PUSH_PROVIDER = ROOT / "smali/bu5.smali"
 replace_method(VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;',
-               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
-               "disable cross-app VKPNS package scan")
+               '    .locals 1\n\n    const-string v0, ""\n\n    return-object v0',
+               "disable cross-app VKPNS package scan with the original empty-string fallback")
 
 # Remove permissions used only for advertising identity and install attribution.
 import re
@@ -500,15 +500,17 @@ for path, declaration in [
     stop = data.find(".end method", pos)
     if pos < 0 or stop < 0 or "return-" not in data[pos:stop] or "invoke-" in data[pos:stop]:
         raise SystemExit(f"FAIL: identifier provider remains active: {declaration}")
-for path, declaration in [
-    (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
-    (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
-]:
-    data = path.read_text(encoding="utf-8")
-    pos = data.find(".method " + declaration)
-    stop = data.find(".end method", pos)
-    if pos < 0 or stop < 0 or "return-object v0" not in data[pos:stop] or "invoke-" in data[pos:stop]:
-        raise SystemExit(f"FAIL: privacy provider still active: {declaration}")
+data = AD_ID_PROVIDER.read_text(encoding="utf-8")
+pos = data.find(".method public final v(Ljava/lang/Object;)Ljava/lang/Object;")
+stop = data.find(".end method", pos)
+if pos < 0 or stop < 0 or "return-object v0" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+    raise SystemExit("FAIL: Google Advertising ID provider remains active")
+data = VK_PUSH_PROVIDER.read_text(encoding="utf-8")
+pos = data.find(".method public a(Lbx4;)Ljava/lang/Object;")
+stop = data.find(".end method", pos)
+method = data[pos:stop]
+if pos < 0 or stop < 0 or 'const-string v0, ""' not in method or "return-object v0" not in method or "invoke-" in method:
+    raise SystemExit("FAIL: VKPNS provider must return a non-null empty string")
 manifest_text = MANIFEST.read_text(encoding="utf-8")
 for permission in ("com.google.android.gms.permission.AD_ID",
                    "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"):
