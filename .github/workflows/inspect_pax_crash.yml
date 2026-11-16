@@ -56,12 +56,12 @@ jobs:
                   out.append(f"--- {p} ---")
                   if wanted=="q7i.smali":
                       for i,line in enumerate(lines):
-                          if re.match(r"\\.method .* y0\\(Ljava/lang/CharSequence;\\)Z",line):
+                          if re.match(r"\.method .* y0\\(Ljava/lang/CharSequence;\\)Z",line):
                               a=max(0,i-3); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
                   else:
                       for i,line in enumerate(lines):
-                          if re.match(r"\\.method .* v\\(",line) or "Lq7i;->y0" in line:
+                          if re.match(r"\.method .* v\\(",line) or "Lq7i;->y0" in line:
                               a=max(0,i-12); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
           # All direct references to q7i.y0, including caller method declarations.
