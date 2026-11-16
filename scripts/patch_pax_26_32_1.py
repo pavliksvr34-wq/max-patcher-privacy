@@ -90,12 +90,12 @@ TRACKER = ROOT / "smali/com/my/tracker/MyTracker.smali"
 USER_LIFECYCLE = ROOT / "smali/com/my/tracker/userlifecycle/MyTrackerUserLifecycle.smali"
 # Keep MyTracker configuration objects available, but never start its engine.
 replace_method(TRACKER, 'public static initTracker(Ljava/lang/String;Landroid/app/Application;)V',
-               '    .locals 0\\n\\n    return-void', "disable MyTracker engine initialization")
+               '    .locals 0\n\n    return-void', "disable MyTracker engine initialization")
 replace_method(TRACKER, 'public static handleDeeplink(Landroid/content/Intent;)Ljava/lang/String;',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
                "disable MyTracker attribution deeplinks")
 replace_method(TRACKER, 'public static flush()V',
-               '    .locals 0\\n\\n    return-void', "disable MyTracker event flush")
+               '    .locals 0\n\n    return-void', "disable MyTracker event flush")
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;)V',
                '    .locals 0\n\n    return-void', "disable MyTracker trackEvent(String)")
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;Ljava/util/Map;)V',
