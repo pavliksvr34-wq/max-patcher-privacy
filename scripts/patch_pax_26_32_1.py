@@ -318,6 +318,12 @@ for declaration, label in [
     replace_method(CALL_ANALYTICS_V2, declaration, '    .locals 0\n\n    return-void',
                    "disable CallAnalyticsUploaderV2 " + label)
 
+# Prevent creation or reuse of the persistent app/MyTracker instanceId in preferences.
+INSTANCE_ID_PROVIDER = ROOT / "smali/hsl.smali"
+replace_method(INSTANCE_ID_PROVIDER, 'public static a(Landroid/app/Application;)Ljava/lang/String;',
+               '    .locals 1\n\n    const-string v0, ""\n\n    return-object v0',
+               "disable persistent instanceId generation and retrieval")
+
 # Suppress MyTracker device/session report serialization, the path that reads
 # DeviceParamsDataProvider (model, manufacturer, OS, locale, timezone, display,
 # storage, root flag, App Set ID, OAID/GAID and Firebase App Instance ID).
@@ -434,6 +440,11 @@ pos = data.find(".method public final isDisabled()Z")
 stop = data.find(".end method", pos)
 if pos < 0 or stop < 0 or "const/4 v0, 0x1" not in data[pos:stop] or "invoke-" in data[pos:stop]:
     raise SystemExit("FAIL: TracerLite telemetry is not forced disabled")
+data = INSTANCE_ID_PROVIDER.read_text(encoding="utf-8")
+pos = data.find(".method public static a(Landroid/app/Application;)Ljava/lang/String;")
+stop = data.find(".end method", pos)
+if pos < 0 or stop < 0 or 'const-string v0, ""' not in data[pos:stop] or "invoke-" in data[pos:stop]:
+    raise SystemExit("FAIL: persistent instanceId provider remains active")
 for path, declaration in [
     (APP_SET_PROVIDER, 'public final b()V'),
     (APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V'),
