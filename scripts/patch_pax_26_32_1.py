@@ -134,10 +134,11 @@ for permission in (
     "com.google.android.gms.permission.AD_ID",
     "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
 ):
-    pattern = re.compile(r'<uses-permission\\b(?=[^>]*android:name="' + re.escape(permission) + r'")[^>]*/>\\s*')
-    manifest_text, count = pattern.subn("", manifest_text)
-    if count != 1:
-        raise SystemExit(f"FAIL: expected exactly one manifest permission {permission}, got {count}")
+    lines = manifest_text.splitlines(keepends=True)
+    matches = [line for line in lines if "<uses-permission" in line and f'android:name="{permission}"' in line]
+    if len(matches) != 1:
+        raise SystemExit(f"FAIL: expected exactly one manifest permission {permission}, got {len(matches)}")
+    manifest_text = "".join(line for line in lines if line not in matches)
     print(f"REMOVED: manifest permission {permission}")
 MANIFEST.write_text(manifest_text, encoding="utf-8")
 
