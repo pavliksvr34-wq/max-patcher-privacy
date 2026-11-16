@@ -46,7 +46,7 @@ jobs:
           mkdir apkm
           unzip -q MAX_26.32.1_6831.apkm -d apkm
           echo "===== APKM FILES ====="
-          find apkm -maxdepth 2 -type f -printf '%P %s bytes\\n' | sort
+          find apkm -maxdepth 2 -type f -printf '%P %s bytes\n' | sort
           echo "===== APKM INFO ====="
           if [ -f apkm/info.json ]; then cat apkm/info.json; else echo "::error::info.json missing"; exit 1; fi
           python - <<'PY'
@@ -87,7 +87,7 @@ jobs:
           curl --fail --location --retry 3 \
             https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.10.0.jar \
             --output apktool.jar
-          printf '#!/usr/bin/env bash\\nexec java -jar "$GITHUB_WORKSPACE/apktool.jar" "$@"\\n' > apktool
+          printf '#!/usr/bin/env bash\nexec java -jar "$GITHUB_WORKSPACE/apktool.jar" "$@"\n' > apktool
           chmod +x apktool
           echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
 
@@ -126,17 +126,17 @@ jobs:
               hits = [(p, text.count(snippet)) for p, text in corpus if snippet in text]
               count = sum(n for _, n in hits)
               (matched if count else unmatched).append((patch.name, count, [p.as_posix() for p, n in hits]))
-          print("\\n===== PATCH MATCH REPORT =====")
+          print("\n===== PATCH MATCH REPORT =====")
           for name, count, paths in matched:
               print(f"MATCH {count:>3}  {name}  {', '.join(paths[:3])}")
           for name, count, _ in unmatched:
               print(f"NO MATCH      {name}")
-          print(f"\\nMatched snippets: {len(matched)}/{len(originals)}")
+          print(f"\nMatched snippets: {len(matched)}/{len(originals)}")
           print(f"Unmatched snippets: {len(unmatched)}")
           if not matched:
               raise SystemExit("No existing patches match this MAX version")
           Path("patch_compatibility.txt").write_text(
-              "\\n".join([f"MATCH {n} {name}" for name, n, _ in matched] +
+              "\n".join([f"MATCH {n} {name}" for name, n, _ in matched] +
                          [f"NO MATCH {name}" for name, _, _ in unmatched]),
               encoding="utf-8")
           PY
