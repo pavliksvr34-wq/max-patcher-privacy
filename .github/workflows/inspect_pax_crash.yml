@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Download and decode exact MAX 26.32.1 source
         env:
-          SOURCE_URL: ${{ secrets.SOURCE_URL }}
+          SOURCE_URL: ${{ secrets.PAX_SOURCE_URL }}
         run: |
           set -euo pipefail
           test -n "$SOURCE_URL"
@@ -72,7 +72,7 @@ jobs:
                       method=next((lines[j] for j in range(i,-1,-1) if lines[j].startswith(".method ")), "method not found")
                       out.append(f"{p}:{i+1}: {method}")
                       out.extend(f"{j+1}: {lines[j]}" for j in range(max(0,i-8),min(len(lines),i+12)))
-          Path("crash_class_report.txt").write_text("\\n".join(out),encoding="utf-8")
+          Path("crash_class_report.txt").write_text("\n".join(out),encoding="utf-8")
           print("\\n".join(out[:30]))
           PY
       - uses: actions/upload-artifact@v4
