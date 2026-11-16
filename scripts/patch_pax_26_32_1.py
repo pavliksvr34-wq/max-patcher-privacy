@@ -89,11 +89,11 @@ replace_once(INIT, anchor, insert, "disable MyTracker launch/environment/preinst
 TRACKER = ROOT / "smali/com/my/tracker/MyTracker.smali"
 USER_LIFECYCLE = ROOT / "smali/com/my/tracker/userlifecycle/MyTrackerUserLifecycle.smali"
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;)V',
-               '    .locals 0\\n\\n    return-void', "disable MyTracker trackEvent(String)")
+               '    .locals 0\n\n    return-void', "disable MyTracker trackEvent(String)")
 replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;Ljava/util/Map;)V',
-               '    .locals 0\\n\\n    return-void', "disable MyTracker trackEvent(String, Map)")
+               '    .locals 0\n\n    return-void', "disable MyTracker trackEvent(String, Map)")
 replace_method(TRACKER, 'public static getInstanceId(Landroid/app/Application;)Ljava/lang/String;',
-               '    .locals 1\\n\\n    const-string v0, ""\\n\\n    return-object v0',
+               '    .locals 1\n\n    const-string v0, ""\n\n    return-object v0',
                "disable persistent MyTracker instance ID")
 for declaration, label in [
     ('public static trackInviteEvent()V', "trackInviteEvent()"),
@@ -103,7 +103,7 @@ for declaration, label in [
     ('public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;)V', "trackRegistrationEvent(String, String)"),
     ('public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V', "trackRegistrationEvent(String, String, Map)"),
 ]:
-    replace_method(USER_LIFECYCLE, declaration, '    .locals 0\\n\\n    return-void',
+    replace_method(USER_LIFECYCLE, declaration, '    .locals 0\n\n    return-void',
                    "disable MyTracker " + label)
 
 # Verify the account-ID setter itself is now inert. The MAX call site remains
