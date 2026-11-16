@@ -109,9 +109,22 @@ jobs:
           apktool b apk_workdir -o base-rebuilt-unsigned.apk
           zipalign -f -v 4 base-rebuilt-unsigned.apk base-rebuilt-aligned.apk
 
-      - name: Generate temporary signing key
+      - name: Prepare PAX signing key
+        env:
+          PAX_SIGNING_KEY_PK8_B64: ${{ secrets.PAX_SIGNING_KEY_PK8_B64 }}
+          PAX_SIGNING_CERT_PEM_B64: ${{ secrets.PAX_SIGNING_CERT_PEM_B64 }}
         run: |
-          keytool -genkeypair -v -keystore pax-test.keystore -alias pax -keyalg RSA -keysize 2048 -validity 10000 -storepass pax-temporary -keypass pax-temporary -dname "CN=PAX Test, OU=Build, O=PAX, L=Unknown, ST=Unknown, C=RU"
+          set -euo pipefail
+          if [ -n "$PAX_SIGNING_KEY_PK8_B64" ] && [ -n "$PAX_SIGNING_CERT_PEM_B64" ]; then
+            printf '%s' "$PAX_SIGNING_KEY_PK8_B64" | base64 --decode > pax-release.pk8
+            printf '%s' "$PAX_SIGNING_CERT_PEM_B64" | base64 --decode > pax-release-cert.pem
+            echo "PAX_SIGNING_MODE=persistent" >> "$GITHUB_ENV"
+            echo "Using persistent PAX signing certificate"
+          else
+            keytool -genkeypair -v -keystore pax-test.keystore -alias pax -keyalg RSA -keysize 2048 -validity 10000 -storepass pax-temporary -keypass pax-temporary -dname "CN=PAX Test, OU=Build, O=PAX, L=Unknown, ST=Unknown, C=RU"
+            echo "PAX_SIGNING_MODE=temporary" >> "$GITHUB_ENV"
+            echo "WARNING: using a temporary test signing key"
+          fi
 
       - name: Sign all APK splits with the same key
         run: |
@@ -124,7 +137,11 @@ jobs:
             cp "$f" "output/$(basename "$f")"
           done
           for f in output/*.apk; do
-            apksigner sign --ks pax-test.keystore --ks-key-alias pax --ks-pass pass:pax-temporary --key-pass pass:pax-temporary "$f"
+            if [ "$PAX_SIGNING_MODE" = "persistent" ]; then
+              apksigner sign --key pax-release.pk8 --cert pax-release-cert.pem "$f"
+            else
+              apksigner sign --ks pax-test.keystore --ks-key-alias pax --ks-pass pass:pax-temporary --key-pass pass:pax-temporary "$f"
+            fi
             apksigner verify --verbose "$f"
           done
           zip -9 -j PAX-26.32.1-6831.apkm output/*
