@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Download and decode exact MAX 26.32.1 source
         env:
-          SOURCE_URL: ${{ secrets.PAX_SOURCE_URL }}
+          SOURCE_URL: ${{ secrets.SOURCE_URL }}
         run: |
           set -euo pipefail
           test -n "$SOURCE_URL"
@@ -55,12 +55,12 @@ jobs:
                   out.append(f"--- {p} ---")
                   if wanted=="q7i.smali":
                       for i,line in enumerate(lines):
-                          if re.match(r"\.method .* y0\\(Ljava/lang/CharSequence;\\)Z",line):
+                          if line.startswith(".method ") and " y0(" in line and "Ljava/lang/CharSequence;" in line:
                               a=max(0,i-3); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
                   else:
                       for i,line in enumerate(lines):
-                          if re.match(r"\.method .* v\\(",line) or "Lq7i;->y0" in line:
+                          if (line.startswith(".method ") and " v(" in line) or "Lq7i;->y0" in line:
                               a=max(0,i-12); b=min(len(lines),i+100)
                               out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
           # All direct references to q7i.y0, including caller method declarations.
