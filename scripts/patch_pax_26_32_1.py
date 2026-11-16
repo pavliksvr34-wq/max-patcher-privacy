@@ -114,6 +114,33 @@ for declaration, label in [
     replace_method(USER_LIFECYCLE, declaration, '    .locals 0\n\n    return-void',
                    "disable MyTracker " + label)
 
+# Disable independent Google Advertising ID retrieval.
+AD_ID_PROVIDER = ROOT / "smali_classes3/x18.smali"
+replace_method(AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               "block Google Advertising ID provider")
+
+# Stop scanning other installed apps for a shared VKPNS device identifier.
+VK_PUSH_PROVIDER = ROOT / "smali/bu5.smali"
+replace_method(VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;',
+               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               "disable cross-app VKPNS package scan")
+
+# Remove permissions used only for advertising identity and install attribution.
+import re
+MANIFEST = ROOT / "AndroidManifest.xml"
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+for permission in (
+    "com.google.android.gms.permission.AD_ID",
+    "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+):
+    pattern = re.compile(r'<uses-permission\\b(?=[^>]*android:name="' + re.escape(permission) + r'")[^>]*/>\\s*')
+    manifest_text, count = pattern.subn("", manifest_text)
+    if count != 1:
+        raise SystemExit(f"FAIL: expected exactly one manifest permission {permission}, got {count}")
+    print(f"REMOVED: manifest permission {permission}")
+MANIFEST.write_text(manifest_text, encoding="utf-8")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -130,6 +157,20 @@ for api in ("setTrackingLaunchEnabled(Z)", "setTrackingEnvironmentEnabled(Z)",
             "setAutotrackingPurchaseEnabled(Z)", "setLocationTrackingMode(I)"):
     if api not in config:
         raise SystemExit(f"FAIL: MyTrackerConfig API missing: {api}")
+for path, declaration in [
+    (AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;'),
+    (VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;'),
+]:
+    data = path.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or "return-object v0" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: privacy provider still active: {declaration}")
+manifest_text = MANIFEST.read_text(encoding="utf-8")
+for permission in ("com.google.android.gms.permission.AD_ID",
+                   "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"):
+    if permission in manifest_text:
+        raise SystemExit(f"FAIL: sensitive manifest permission remains: {permission}")
 for declaration, return_token in [
     ('public static initTracker(Ljava/lang/String;Landroid/app/Application;)V', 'return-void'),
     ('public static handleDeeplink(Landroid/content/Intent;)Ljava/lang/String;', 'return-object v0'),
