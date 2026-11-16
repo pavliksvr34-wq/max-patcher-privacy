@@ -117,13 +117,13 @@ for declaration, label in [
 # Disable independent Google Advertising ID retrieval.
 AD_ID_PROVIDER = ROOT / "smali_classes3/x18.smali"
 replace_method(AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Object;',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
                "block Google Advertising ID provider")
 
 # Stop scanning other installed apps for a shared VKPNS device identifier.
 VK_PUSH_PROVIDER = ROOT / "smali/bu5.smali"
 replace_method(VK_PUSH_PROVIDER, 'public a(Lbx4;)Ljava/lang/Object;',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
                "disable cross-app VKPNS package scan")
 
 # Remove permissions used only for advertising identity and install attribution.
