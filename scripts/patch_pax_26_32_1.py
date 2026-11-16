@@ -123,16 +123,16 @@ replace_method(AD_ID_PROVIDER, 'public final v(Ljava/lang/Object;)Ljava/lang/Obj
 # Disable Android App Set ID retrieval and callback persistence.
 APP_SET_PROVIDER = ROOT / "smali/gkl.smali"
 replace_method(APP_SET_PROVIDER, 'public final b()V',
-               '    .locals 0\\n\\n    return-void',
+               '    .locals 0\n\n    return-void',
                "disable App Set ID retrieval")
 replace_method(APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V',
-               '    .locals 0\\n\\n    return-void',
+               '    .locals 0\n\n    return-void',
                "disable App Set ID persistence callback")
 
 # Disable Huawei OAID retrieval as a second advertising-ID provider.
 HUAWEI_AD_ID_PROVIDER = ROOT / "smali/zsl.smali"
 replace_method(HUAWEI_AD_ID_PROVIDER, 'public static a(Landroid/app/Application;)Lnpf;',
-               '    .locals 1\\n\\n    const/4 v0, 0x0\\n\\n    return-object v0',
+               '    .locals 1\n\n    const/4 v0, 0x0\n\n    return-object v0',
                "block Huawei OAID retrieval")
 
 # Stop scanning other installed apps for a shared VKPNS device identifier.
