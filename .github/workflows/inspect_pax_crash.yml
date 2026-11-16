@@ -1,0 +1,83 @@
+name: Inspect PAX startup crash classes
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/inspect_pax_crash.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download and decode exact MAX 26.32.1 source
+        env:
+          SOURCE_URL: ${{ secrets.PAX_SOURCE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_URL"
+          python - <<'PY'
+          import os, urllib.parse, urllib.request
+          u=os.environ["SOURCE_URL"]
+          p=urllib.parse.urlsplit(u)
+          q=urllib.parse.parse_qs(p.query); q["dl"]=["1"]
+          u=urllib.parse.urlunsplit((p.scheme,p.netloc,p.path,urllib.parse.urlencode(q,doseq=True),p.fragment))
+          req=urllib.request.Request(u,headers={"User-Agent":"PAX-crash-inspect/1.0"})
+          with urllib.request.urlopen(req,timeout=90) as r, open("source.apkm","wb") as f:
+              while True:
+                  b=r.read(1024*1024)
+                  if not b: break
+                  f.write(b)
+          import zipfile,json
+          z=zipfile.ZipFile("source.apkm")
+          info=json.loads(z.read("info.json"))
+          assert info.get("pname")=="ru.oneme.app" and str(info.get("versioncode"))=="6831" and info.get("release_version")=="26.32.1", info
+          z.extract("base.apk","source")
+          PY
+          curl -fsSL https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -o apktool.jar
+          java -jar apktool.jar d source/base.apk -f -o decoded
+      - name: Extract crash methods and callers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path("decoded")
+          out=[]
+          for wanted in ("q7i.smali","dr4.smali"):
+              found=list(root.rglob(wanted))
+              out.append(f"===== FILE {wanted}: {len(found)} matches =====")
+              for p in found:
+                  lines=p.read_text(errors="ignore").splitlines()
+                  out.append(f"--- {p} ---")
+                  if wanted=="q7i.smali":
+                      for i,line in enumerate(lines):
+                          if re.match(r"\\.method .* y0\\(Ljava/lang/CharSequence;\\)Z",line):
+                              a=max(0,i-3); b=min(len(lines),i+100)
+                              out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
+                  else:
+                      for i,line in enumerate(lines):
+                          if re.match(r"\\.method .* v\\(",line) or "Lq7i;->y0" in line:
+                              a=max(0,i-12); b=min(len(lines),i+100)
+                              out.extend(f"{j+1}: {lines[j]}" for j in range(a,b))
+          # All direct references to q7i.y0, including caller method declarations.
+          out.append("===== ALL q7i.y0 CALLERS =====")
+          for p in root.rglob("*.smali"):
+              lines=p.read_text(errors="ignore").splitlines()
+              for i,line in enumerate(lines):
+                  if "Lq7i;->y0(Ljava/lang/CharSequence;)Z" in line:
+                      method=next((lines[j] for j in range(i,-1,-1) if lines[j].startswith(".method ")), "method not found")
+                      out.append(f"{p}:{i+1}: {method}")
+                      out.extend(f"{j+1}: {lines[j]}" for j in range(max(0,i-8),min(len(lines),i+12)))
+          Path("crash_class_report.txt").write_text("\\n".join(out),encoding="utf-8")
+          print("\\n".join(out[:30]))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pax-crash-class-report
+          path: crash_class_report.txt
+          retention-days: 14
