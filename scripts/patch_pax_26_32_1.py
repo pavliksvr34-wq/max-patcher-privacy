@@ -356,6 +356,7 @@ replace_method(TRACER_LITE, 'public final isDisabled()Z',
                "force TracerLite disabled")
 
 # Verify all personal-data and custom-property setters are inert.
+params = PARAMS.read_text(encoding="utf-8")
 for declaration in [
     'public setAge(I)Lcom/my/tracker/MyTrackerParams;',
     'public setGender(I)Lcom/my/tracker/MyTrackerParams;',
