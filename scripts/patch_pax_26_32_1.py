@@ -269,6 +269,15 @@ def remove_manifest_service(text, class_name):
     del lines[start:end+1]
     print(f"REMOVED: manifest service {class_name}")
     return "".join(lines)
+for declaration in (
+    'public final onStartJob(Landroid/app/job/JobParameters;)Z',
+    'public final onStopJob(Landroid/app/job/JobParameters;)Z',
+):
+    data = RUSTORE_METRICS.read_text(encoding="utf-8")
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or "return v0" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: RuStore metrics job remains active: {declaration}")
 for class_name in (
     "ru.ok.android.externcalls.analytics.internal.upload.UploadService",
     "ru.ok.android.onelog.UploadService",
