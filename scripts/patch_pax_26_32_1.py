@@ -288,7 +288,7 @@ for class_name in (
 MANIFEST.write_text(manifest_text, encoding="utf-8")
 
 # Block VKPNS/ClientAnalyticsSender network submissions; push registration remains intact.
-CLIENT_ANALYTICS = ROOT / "smali/nal.smali"
+CLIENT_ANALYTICS = ROOT / "smali_classes3/nal.smali"
 replace_method(CLIENT_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;',
                '    .locals 1\n\n    sget-object v0, Lsej;->a:Lsej;\n\n    return-object v0',
                "disable ClientAnalyticsSender network submissions")
