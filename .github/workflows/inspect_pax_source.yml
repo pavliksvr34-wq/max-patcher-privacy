@@ -2,6 +2,9 @@ name: Inspect MAX source for PAX
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/inspect_pax_source.yml'
 
 permissions:
   contents: read
