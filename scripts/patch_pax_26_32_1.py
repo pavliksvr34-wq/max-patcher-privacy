@@ -293,6 +293,16 @@ replace_method(CLIENT_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;L
                '    .locals 1\n\n    sget-object v0, Lsej;->a:Lsej;\n\n    return-object v0',
                "disable ClientAnalyticsSender network submissions")
 
+# Disable the remaining file-based CallAnalyticsUploaderV2 collection and upload methods.
+CALL_ANALYTICS_V2 = ROOT / "smali_classes3/snb.smali"
+for declaration, label in [
+    ('public final b()V', "upload trigger"),
+    ('public final i(Ljava/io/File;)V', "local analytics file collection"),
+    ('public final m()V', "file upload loop"),
+]:
+    replace_method(CALL_ANALYTICS_V2, declaration, '    .locals 0\\n\\n    return-void',
+                   "disable CallAnalyticsUploaderV2 " + label)
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -348,6 +358,14 @@ pos = data.find(".method public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljav
 stop = data.find(".end method", pos)
 if pos < 0 or stop < 0 or "Lsej;->a:Lsej;" not in data[pos:stop] or "Lqg6;->z" in data[pos:stop]:
     raise SystemExit("FAIL: ClientAnalyticsSender still sends events")
+data = CALL_ANALYTICS_V2.read_text(encoding="utf-8")
+for declaration in ('public final b()V',
+                    'public final i(Ljava/io/File;)V',
+                    'public final m()V'):
+    pos = data.find(".method " + declaration)
+    stop = data.find(".end method", pos)
+    if pos < 0 or stop < 0 or "return-void" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+        raise SystemExit(f"FAIL: CallAnalyticsUploaderV2 still active: {declaration}")
 for path, declarations in [
     (APP_ANALYTICS, ['public final h(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V']),
     (CALL_UPLOAD, ['public static a(Landroid/content/Intent;)V',
