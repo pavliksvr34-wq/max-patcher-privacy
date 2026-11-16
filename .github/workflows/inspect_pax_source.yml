@@ -261,7 +261,7 @@ jobs:
           root = Path("apk_workdir")
           out = Path("privacy_methods")
           out.mkdir(exist_ok=True)
-          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali"}
+          targets = {"bu5.smali","ygk.smali","xs.smali","x18.smali","zsl.smali","gkl.smali","mjl.smali","rjl.smali","otj.smali","ju5.smali","q77.smali","r77.smali","s77.smali","ao5.smali","hsl.smali","h2j.smali","rgl.smali","val.smali"}
           copied = []
           for src in root.rglob("*.smali"):
               if src.name in targets:
