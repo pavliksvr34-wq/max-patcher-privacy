@@ -8,6 +8,23 @@ PATCH_ROOT = Path("patches")
 PARAMS = ROOT / "smali/com/my/tracker/MyTrackerParams.smali"
 INIT = ROOT / "smali/d6.smali"
 
+def replace_method(path: Path, declaration: str, body: str, label: str):
+    text = path.read_text(encoding="utf-8")
+    marker = ".method " + declaration
+    start = text.find(marker)
+    if start < 0 or text.find(marker, start + 1) >= 0:
+        raise SystemExit(f"FAIL: {label}: expected exactly one method declaration")
+    end = text.find(".end method", start)
+    if end < 0:
+        raise SystemExit(f"FAIL: {label}: method terminator missing")
+    header_end = text.find("\\n", start)
+    if header_end < 0:
+        raise SystemExit(f"FAIL: {label}: method header malformed")
+    replacement = text[start:header_end + 1] + body + "\\n.end method"
+    text = text[:start] + replacement + text[end + len(".end method"):]
+    path.write_text(text, encoding="utf-8")
+    print(f"PATCHED: {label}")
+
 def replace_once(path: Path, old: str, new: str, label: str):
     if not path.is_file():
         raise SystemExit(f"FAIL: missing {path}")
@@ -68,6 +85,27 @@ insert = anchor + """    const/4 v11, 0x0
 """
 replace_once(INIT, anchor, insert, "disable MyTracker launch/environment/preinstall/purchase/location collection")
 
+# Disable MyTracker custom events and user lifecycle events.
+TRACKER = ROOT / "smali/com/my/tracker/MyTracker.smali"
+USER_LIFECYCLE = ROOT / "smali/com/my/tracker/userlifecycle/MyTrackerUserLifecycle.smali"
+replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;)V',
+               '    .locals 0\\n\\n    return-void', "disable MyTracker trackEvent(String)")
+replace_method(TRACKER, 'public static trackEvent(Ljava/lang/String;Ljava/util/Map;)V',
+               '    .locals 0\\n\\n    return-void', "disable MyTracker trackEvent(String, Map)")
+replace_method(TRACKER, 'public static getInstanceId(Landroid/app/Application;)Ljava/lang/String;',
+               '    .locals 1\\n\\n    const-string v0, ""\\n\\n    return-object v0',
+               "disable persistent MyTracker instance ID")
+for declaration, label in [
+    ('public static trackInviteEvent()V', "trackInviteEvent()"),
+    ('public static trackInviteEvent(Ljava/util/Map;)V', "trackInviteEvent(Map)"),
+    ('public static trackLoginEvent(Ljava/lang/String;Ljava/lang/String;)V', "trackLoginEvent(String, String)"),
+    ('public static trackLoginEvent(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V', "trackLoginEvent(String, String, Map)"),
+    ('public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;)V', "trackRegistrationEvent(String, String)"),
+    ('public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V', "trackRegistrationEvent(String, String, Map)"),
+]:
+    replace_method(USER_LIFECYCLE, declaration, '    .locals 0\\n\\n    return-void',
+                   "disable MyTracker " + label)
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -84,6 +122,32 @@ for api in ("setTrackingLaunchEnabled(Z)", "setTrackingEnvironmentEnabled(Z)",
             "setAutotrackingPurchaseEnabled(Z)", "setLocationTrackingMode(I)"):
     if api not in config:
         raise SystemExit(f"FAIL: MyTrackerConfig API missing: {api}")
+for path, declarations in [
+    (TRACKER, [
+        'public static trackEvent(Ljava/lang/String;)V',
+        'public static trackEvent(Ljava/lang/String;Ljava/util/Map;)V',
+    ]),
+    (USER_LIFECYCLE, [
+        'public static trackInviteEvent()V',
+        'public static trackInviteEvent(Ljava/util/Map;)V',
+        'public static trackLoginEvent(Ljava/lang/String;Ljava/lang/String;)V',
+        'public static trackLoginEvent(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V',
+        'public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;)V',
+        'public static trackRegistrationEvent(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V',
+    ]),
+]:
+    data = path.read_text(encoding="utf-8")
+    for declaration in declarations:
+        pos = data.find(".method " + declaration)
+        stop = data.find(".end method", pos)
+        method = data[pos:stop]
+        if "return-void" not in method or "invoke-" in method:
+            raise SystemExit(f"FAIL: method not inert: {declaration}")
+data = TRACKER.read_text(encoding="utf-8")
+pos = data.find(".method public static getInstanceId(Landroid/app/Application;)Ljava/lang/String;")
+stop = data.find(".end method", pos)
+if 'const-string v0, ""' not in data[pos:stop]:
+    raise SystemExit("FAIL: MyTracker instance ID is not blank")
 print("PASS: custom user ID setter is inert; MAX call flow preserved")
 print("PASS: all six MyTrackerConfig APIs exist in this bundled SDK")
 print("PASS: strict PAX 26.32.1 patch stage completed")
