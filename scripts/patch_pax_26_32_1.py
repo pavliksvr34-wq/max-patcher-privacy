@@ -150,19 +150,19 @@ replace_method(DAILY_ANALYTICS, 'public final d()Lvo9;',
 # Disable Firebase Analytics instance-ID retrieval.
 FIREBASE_HELPER = ROOT / "smali/esl.smali"
 replace_method(FIREBASE_HELPER, 'public static a(Landroid/app/Application;Lr9f;)V',
-               '    .locals 0\\n\\n    invoke-static {}, Lr9f;->i()V\\n\\n    return-void',
+               '    .locals 0\n\n    invoke-static {}, Lr9f;->i()V\n\n    return-void',
                "disable Firebase Analytics app-instance-ID retrieval")
 
 # Suppress host/web-app analytics uploads without affecting their caller flow.
 HOST_ANALYTICS = ROOT / "smali/ad8.smali"
 replace_method(HOST_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;',
-               '    .locals 1\\n\\n    sget-object v0, Lsej;->a:Lsej;\\n\\n    return-object v0',
+               '    .locals 1\n\n    sget-object v0, Lsej;->a:Lsej;\n\n    return-object v0',
                "disable HostAnalyticsSender upload")
 
 # Suppress call-quality telemetry event; this is separate from call setup/media.
 CALL_ANALYTICS = ROOT / "smali_classes3/h88.smali"
 replace_method(CALL_ANALYTICS, 'public static X(Lme1;)V',
-               '    .locals 0\\n\\n    return-void',
+               '    .locals 0\n\n    return-void',
                "disable vchat.clientStats analytics event")
 
 # Disable the independent Tracer SDK startup, including crash/performance/heap/disk collectors.
