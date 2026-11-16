@@ -318,6 +318,15 @@ for declaration, label in [
     replace_method(CALL_ANALYTICS_V2, declaration, '    .locals 0\n\n    return-void',
                    "disable CallAnalyticsUploaderV2 " + label)
 
+# Suppress MyTracker device/session report serialization, the path that reads
+# DeviceParamsDataProvider (model, manufacturer, OS, locale, timezone, display,
+# storage, root flag, App Set ID, OAID/GAID and Firebase App Instance ID).
+MYTRACKER_DEVICE_REPORT = ROOT / "smali/ktf.smali"
+replace_method(MYTRACKER_DEVICE_REPORT,
+               'public declared-synchronized d(Lo91;Lg2j;Lee4;JJLnk6;)V',
+               '    .locals 0\\n\\n    return-void',
+               "disable MyTracker device/session report serialization")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -409,6 +418,11 @@ for class_name in (
 ):
     if class_name in MANIFEST.read_text(encoding="utf-8"):
         raise SystemExit(f"FAIL: telemetry service remains in manifest: {class_name}")
+data = MYTRACKER_DEVICE_REPORT.read_text(encoding="utf-8")
+pos = data.find(".method public declared-synchronized d(Lo91;Lg2j;Lee4;JJLnk6;)V")
+stop = data.find(".end method", pos)
+if pos < 0 or stop < 0 or "return-void" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+    raise SystemExit("FAIL: MyTracker device/session report serializer remains active")
 for path, declaration in [
     (APP_SET_PROVIDER, 'public final b()V'),
     (APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V'),
