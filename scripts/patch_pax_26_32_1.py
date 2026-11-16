@@ -51,6 +51,22 @@ for name in names:
     patched = (PATCH_ROOT / "patched" / name).read_text(encoding="utf-8")
     replace_once(PARAMS, original, patched, name)
 
+# Block the remaining personal-data setters and arbitrary custom analytics properties.
+for declaration, label in [
+    ('public setAge(I)Lcom/my/tracker/MyTrackerParams;', 'age'),
+    ('public setGender(I)Lcom/my/tracker/MyTrackerParams;', 'gender'),
+    ('public setCustomUserIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'custom user ID array'),
+    ('public setEmails([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'email array'),
+    ('public setPhones([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'phone array'),
+    ('public setIcqIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'ICQ ID array'),
+    ('public setOkIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'OK ID array'),
+    ('public setVkConnectIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'VK Connect ID array'),
+    ('public setVkIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'VK ID array'),
+    ('public setCustomParam(Ljava/lang/String;Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;', 'arbitrary custom analytics property'),
+]:
+    replace_method(PARAMS, declaration, '    .locals 0\n\n    return-object p0',
+                   "block MyTracker " + label)
+
 # Explicitly disable MyTracker collection categories while retaining SDK init
 # and instance-id APIs that the MAX app itself calls.
 anchor = """    invoke-virtual {v10, v7}, Lcom/my/tracker/MyTrackerConfig;->setKidMode(Z)Lcom/my/tracker/MyTrackerConfig;
@@ -338,6 +354,24 @@ TRACER_LITE = ROOT / "smali/ru/ok/tracer/lite/TracerLite.smali"
 replace_method(TRACER_LITE, 'public final isDisabled()Z',
                '    .locals 1\n\n    const/4 v0, 0x1\n\n    return v0',
                "force TracerLite disabled")
+
+# Verify all personal-data and custom-property setters are inert.
+for declaration in [
+    'public setAge(I)Lcom/my/tracker/MyTrackerParams;',
+    'public setGender(I)Lcom/my/tracker/MyTrackerParams;',
+    'public setCustomUserIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setEmails([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setPhones([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setIcqIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setOkIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setVkConnectIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setVkIds([Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+    'public setCustomParam(Ljava/lang/String;Ljava/lang/String;)Lcom/my/tracker/MyTrackerParams;',
+]:
+    pos = params.find(".method " + declaration)
+    stop = params.find(".end method", pos)
+    if pos < 0 or stop < 0 or "return-object p0" not in params[pos:stop] or "invoke-" in params[pos:stop]:
+        raise SystemExit(f"FAIL: personal MyTracker setter remains active: {declaration}")
 
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
