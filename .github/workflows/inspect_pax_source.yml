@@ -231,6 +231,17 @@ jobs:
                   dst = out / (str(len(copied)) + "_" + name)
                   shutil.copy2(src, dst)
                   copied.append((src, dst))
+          # Capture all application call sites into MyTracker, not only SDK classes.
+          calls = out / "mytracker_callsites.txt"
+          with calls.open("w") as f:
+              for src in root.rglob("*.smali"):
+                  try: lines = src.read_text(encoding="utf-8", errors="ignore").splitlines()
+                  except OSError: continue
+                  for i, line in enumerate(lines):
+                      if "Lcom/my/tracker/MyTracker;->" in line or "Lcom/my/tracker/MyTrackerConfig;->" in line:
+                          lo, hi = max(0, i-5), min(len(lines), i+7)
+                          f.write(f"\\n===== {src}:{i+1} =====\\n")
+                          f.write("\\n".join(f"{j+1}: {lines[j]}" for j in range(lo, hi)) + "\\n")
           pkg = root / "smali" / "com" / "my" / "tracker"
           if pkg.exists():
               shutil.copytree(pkg, out / "com_my_tracker", dirs_exist_ok=True)
