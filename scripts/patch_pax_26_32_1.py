@@ -133,6 +133,7 @@ manifest_text = MANIFEST.read_text(encoding="utf-8")
 for permission in (
     "com.google.android.gms.permission.AD_ID",
     "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+    "android.permission.REQUEST_INSTALL_PACKAGES",
 ):
     lines = manifest_text.splitlines(keepends=True)
     matches = [line for line in lines if "<uses-permission" in line and f'android:name="{permission}"' in line]
@@ -286,6 +287,12 @@ for class_name in (
     manifest_text = remove_manifest_service(manifest_text, class_name)
 MANIFEST.write_text(manifest_text, encoding="utf-8")
 
+# Block VKPNS/ClientAnalyticsSender network submissions; push registration remains intact.
+CLIENT_ANALYTICS = ROOT / "smali/nal.smali"
+replace_method(CLIENT_ANALYTICS, 'public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;',
+               '    .locals 1\\n\\n    sget-object v0, Lsej;->a:Lsej;\\n\\n    return-object v0',
+               "disable ClientAnalyticsSender network submissions")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -336,6 +343,11 @@ for path, declaration, token in [
     if pos < 0 or stop < 0 or token not in data[pos:stop] or "invoke-" in data[pos:stop]:
         raise SystemExit(f"FAIL: root detection remains active: {declaration}")
 # Verify central app analytics and telemetry upload paths are inert.
+data = CLIENT_ANALYTICS.read_text(encoding="utf-8")
+pos = data.find(".method public final d(Lur0;Ljava/util/LinkedHashMap;Lvr0;)Ljava/lang/Object;")
+stop = data.find(".end method", pos)
+if pos < 0 or stop < 0 or "Lsej;->a:Lsej;" not in data[pos:stop] or "Lqg6;->z" in data[pos:stop]:
+    raise SystemExit("FAIL: ClientAnalyticsSender still sends events")
 for path, declarations in [
     (APP_ANALYTICS, ['public final h(Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V']),
     (CALL_UPLOAD, ['public static a(Landroid/content/Intent;)V',
