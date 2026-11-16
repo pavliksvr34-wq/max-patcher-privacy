@@ -281,7 +281,10 @@ jobs:
           # Include selected app telemetry and tracer implementations.
           smali_roots = sorted(p for p in root.iterdir() if p.is_dir() and p.name.startswith("smali"))
           for rel in ["ru/ok/tracer", "ru/trace_flow", "ru/ok/android/externcalls/analytics",
-                      "ru/ok/android/onelog", "ru/ok/tamtam/stats", "ru/rustore/sdk/metrics"]:
+                      "ru/ok/android/onelog", "ru/ok/tamtam/stats", "ru/rustore/sdk/metrics",
+                      "ru/ok/tamtam/android/notifications/messages/newpush/fcm/analytics",
+                      "one/me/calls/analytics", "one/me/messages/list/analytics",
+                      "one/me/android/media/analytics", "one/me/sdk/media/player/analytics"]:
               for smali_root in smali_roots:
                   src = smali_root / rel
                   if src.exists():
