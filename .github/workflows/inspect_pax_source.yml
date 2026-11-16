@@ -252,6 +252,55 @@ jobs:
           print((out / "INDEX.txt").read_text())
           PY
 
+      - name: Build full privacy inventory
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path("apk_workdir")
+          out = []
+          manifest = root / "AndroidManifest.xml"
+          if manifest.exists():
+              text = manifest.read_text(errors="ignore")
+              out.append("===== MANIFEST PERMISSIONS / COMPONENTS =====")
+              for line in text.splitlines():
+                  if re.search(r"<uses-permission|<permission|<uses-feature|<service|<receiver|<provider|<activity|<application|android:exported|android:foregroundServiceType", line):
+                      out.append(line.strip())
+          patterns = {
+            "SENSITIVE_ANDROID_APIS": r"getInstalledPackages|getInstalledApplications|QUERY_ALL_PACKAGES|PackageManager;->getPackage|AdvertisingIdClient|AppSetId|Settings\\$Secure|ANDROID_ID|TelephonyManager|Build\\$(DEVICE|MODEL|MANUFACTURER|FINGERPRINT)|getImei|getDeviceId|getSubscriberId|getSimSerialNumber|LocationManager|FusedLocationProvider|MediaProjection|UsageStatsManager|ClipboardManager|ContactsContract|AccountManager|WifiInfo|getBSSID|getMacAddress|BluetoothAdapter",
+            "ANALYTICS_AND_TRACKERS": r"MyTracker|mytracker|vk-analytics|apptracer|AppsFlyer|appsflyer|FirebaseAnalytics|FirebaseInstallations|AppMeasurement|AdjustSdk|Adjust;->|Amplitude|Mixpanel|Flurry|Branch;->|FacebookSdk|AppEventsLogger|Sentry|Datadog|Telemetry|Analytics",
+            "NETWORK_ENDPOINTS": r"https?://[^\\s\"'<>]+|wss?://[^\\s\"'<>]+",
+            "ANALYTICS_EVENT_STRINGS": r"(?i)analytics|telemetry|tracking|trackevent|event_name|session_start|session_end|app_open|app_close|install_referrer|attribution|advertising.?id"
+          }
+          files = list(root.rglob("*.smali")) if root.exists() else []
+          for section, pattern in patterns.items():
+              rx = re.compile(pattern)
+              out.append("\\n===== " + section + " =====")
+              seen = set()
+              for path in files:
+                  try: lines = path.read_text(errors="ignore").splitlines()
+                  except OSError: continue
+                  for i, line in enumerate(lines, 1):
+                      if rx.search(line):
+                          item = f"{path.relative_to(root)}:{i}: {line.strip()[:350]}"
+                          if item not in seen:
+                              seen.add(item)
+                              out.append(item)
+              out.append(f"TOTAL {section}: {len(seen)}")
+          # Identify non-base libraries by package roots and class paths.
+          out.append("\\n===== SDK / LIBRARY PACKAGE ROOTS =====")
+          for p in sorted((root / "smali").rglob("*.smali")) if (root / "smali").exists() else []:
+              rel = p.relative_to(root / "smali")
+              parts = rel.parts
+              if len(parts) >= 3 and parts[0] not in {"android", "androidx", "kotlin", "java", "javax", "com"}:
+                  continue
+              if len(parts) >= 3 and parts[0] == "com" and parts[1] not in {"my", "google", "android", "squareup", "facebook", "fasterxml", "airbnb"}:
+                  continue
+          Path("privacy_inventory.txt").write_text("\\n".join(out), encoding="utf-8")
+          print(f"Privacy inventory written; decoded smali classes: {len(files)}; lines: {len(out)}")
+          PY
+
       - name: Upload inspection report
         if: always()
         uses: actions/upload-artifact@v4
