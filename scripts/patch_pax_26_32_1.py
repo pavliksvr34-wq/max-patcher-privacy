@@ -68,9 +68,22 @@ insert = anchor + """    const/4 v11, 0x0
 """
 replace_once(INIT, anchor, insert, "disable MyTracker launch/environment/preinstall/purchase/location collection")
 
-# Verify no direct account ID setter remains in the app's account initializer.
-d6 = INIT.read_text(encoding="utf-8")
-if "->setCustomUserId(" in d6:
-    raise SystemExit("FAIL: account initializer still passes a custom user ID")
-print("PASS: account initializer no longer passes MyTracker custom user ID")
+# Verify the account-ID setter itself is now inert. The MAX call site remains
+# intentionally intact so account initialization keeps its original control flow.
+params = PARAMS.read_text(encoding="utf-8")
+method_start = params.find(".method public setCustomUserId(")
+method_end = params.find(".end method", method_start)
+if method_start < 0 or method_end < 0:
+    raise SystemExit("FAIL: setCustomUserId method not found after patch")
+method = params[method_start:method_end]
+if "return-object p0" not in method or "invoke-" in method:
+    raise SystemExit("FAIL: setCustomUserId is not a no-op")
+config = (ROOT / "smali/com/my/tracker/MyTrackerConfig.smali").read_text(encoding="utf-8")
+for api in ("setTrackingLaunchEnabled(Z)", "setTrackingEnvironmentEnabled(Z)",
+            "setTrackingPreinstallEnabled(Z)", "setTrackingPreinstallThirdPartyEnabled(Z)",
+            "setAutotrackingPurchaseEnabled(Z)", "setLocationTrackingMode(I)"):
+    if api not in config:
+        raise SystemExit(f"FAIL: MyTrackerConfig API missing: {api}")
+print("PASS: custom user ID setter is inert; MAX call flow preserved")
+print("PASS: all six MyTrackerConfig APIs exist in this bundled SDK")
 print("PASS: strict PAX 26.32.1 patch stage completed")
