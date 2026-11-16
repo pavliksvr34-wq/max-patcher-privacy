@@ -327,6 +327,12 @@ replace_method(MYTRACKER_DEVICE_REPORT,
                '    .locals 0\n\n    return-void',
                "disable MyTracker device/session report serialization")
 
+# Force the optional TracerLite library telemetry to remain disabled even if instantiated.
+TRACER_LITE = ROOT / "smali/ru/ok/tracer/lite/TracerLite.smali"
+replace_method(TRACER_LITE, 'public final isDisabled()Z',
+               '    .locals 1\n\n    const/4 v0, 0x1\n\n    return v0',
+               "force TracerLite disabled")
+
 # Verify the account-ID setter itself is now inert. The MAX call site remains
 # intentionally intact so account initialization keeps its original control flow.
 params = PARAMS.read_text(encoding="utf-8")
@@ -423,6 +429,11 @@ pos = data.find(".method public declared-synchronized d(Lo91;Lg2j;Lee4;JJLnk6;)V
 stop = data.find(".end method", pos)
 if pos < 0 or stop < 0 or "return-void" not in data[pos:stop] or "invoke-" in data[pos:stop]:
     raise SystemExit("FAIL: MyTracker device/session report serializer remains active")
+data = TRACER_LITE.read_text(encoding="utf-8")
+pos = data.find(".method public final isDisabled()Z")
+stop = data.find(".end method", pos)
+if pos < 0 or stop < 0 or "const/4 v0, 0x1" not in data[pos:stop] or "invoke-" in data[pos:stop]:
+    raise SystemExit("FAIL: TracerLite telemetry is not forced disabled")
 for path, declaration in [
     (APP_SET_PROVIDER, 'public final b()V'),
     (APP_SET_PROVIDER, 'public final a(ILjava/lang/String;Lcom/google/android/gms/appset/AppSetIdInfo;)V'),
