@@ -311,6 +311,17 @@ jobs:
                           lo, hi = max(0, i-10), min(len(lines), i+16)
                           f.write(f"\\n===== {src}:{i+1} =====\\n")
                           f.write("\\n".join(f"{j+1}: {lines[j]}" for j in range(lo, hi)) + "\\n")
+          # Review other potentially sensitive system APIs and their callers.
+          with (out / "sensitive_api_callers.txt").open("w") as f:
+              rx = re.compile(r"UsageStatsManager|TelephonyManager;->(getNetworkCountryIso|getNetworkOperator|getNetworkOperatorName|isNetworkRoaming)|IClientTelemetryService|getPackagesForUid|ContactsContract|FirebaseAnalytics;->logEvent|FirebaseCrashlytics")
+              for src in root.rglob("*.smali"):
+                  try: lines = src.read_text(errors="ignore").splitlines()
+                  except OSError: continue
+                  for i, line in enumerate(lines):
+                      if rx.search(line):
+                          lo, hi = max(0, i-14), min(len(lines), i+20)
+                          f.write(f"\\n===== {src}:{i+1} =====\\n")
+                          f.write("\\n".join(f"{j+1}: {lines[j]}" for j in range(lo, hi)) + "\\n")
           (out / "INDEX.txt").write_text("\\n".join(copied), encoding="utf-8")
           print(f"Copied {len(copied)} focused privacy implementation classes")
           PY
