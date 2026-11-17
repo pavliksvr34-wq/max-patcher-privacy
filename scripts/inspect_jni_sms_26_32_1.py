@@ -111,3 +111,50 @@ with TARGET_OUT.open("w", encoding="utf-8") as f:
 print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods, {len(target)} raw contexts, {len(target_paths)} full classes and {len(callers)} yt0 callsites.")
 print(f"TARGET_CLASS_REPORT: {TARGET_OUT} ({TARGET_OUT.stat().st_size} bytes)")
 print(f"calculateMeta callers: {len(meta_callers)}")
+
+// Read-only SMS authorization trace: preserve complete login screens,
+// integrity-protection classes, and methods that invoke or reference them.
+AUTH_OUT = Path("sms-auth-flow-report.txt")
+AUTH_CLASS_TOKENS = (
+    "Lone/me/login/inputphone/InputPhoneScreen;",
+    "Lone/me/login/confirm/ConfirmPhoneScreen;",
+    "IntegrityProtectionInteractor",
+    "SmsAttemptExceed",
+    "AUTH_OTP",
+    "verifyIntegrity",
+)
+auth_classes = []
+auth_callers = []
+for path in files:
+    try:
+        source = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    class_line = next((x.strip() for x in source.splitlines() if x.startswith(".class ")), "")
+    if any(token in source for token in AUTH_CLASS_TOKENS) or any(
+        token.rsplit("/", 1)[-1].split(";")[0] in class_line for token in AUTH_CLASS_TOKENS[:2]
+    ):
+        auth_classes.append((path, source))
+        continue
+    lines = source.splitlines()
+    for i, line in enumerate(lines):
+        if any(token in line for token in AUTH_CLASS_TOKENS):
+            start = i
+            while start > 0 and not lines[start].startswith(".method "):
+                start -= 1
+            if lines[start].startswith(".method "):
+                end = i
+                while end < len(lines) and not lines[end].startswith(".end method"):
+                    end += 1
+                auth_callers.append((path, start + 1, lines[start:min(end + 1, len(lines))]))
+with AUTH_OUT.open("w", encoding="utf-8") as f:
+    f.write("MAX 26.32.1 / 6831 SMS authorization and integrity static inspection\\n")
+    f.write(f"Smali files scanned: {len(files)}\\n")
+    f.write(f"Target classes: {len(auth_classes)}\\n")
+    f.write(f"Caller methods: {len(auth_callers)}\\n\\n")
+    for path, source in auth_classes:
+        f.write(f"===== AUTH CLASS {path} =====\\n{source}\\n\\n")
+    for path, line_no, method in auth_callers:
+        f.write(f"===== AUTH CALLER {path}:{line_no} =====\\n")
+        f.write("\\n".join(method) + "\\n\\n")
+print(f"SMS_AUTH_REPORT: {AUTH_OUT} ({AUTH_OUT.stat().st_size} bytes)")
