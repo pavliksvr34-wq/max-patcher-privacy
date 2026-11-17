@@ -158,3 +158,42 @@ with AUTH_OUT.open("w", encoding="utf-8") as f:
         f.write(f"===== AUTH CALLER {path}:{line_no} =====\\n")
         f.write("\\n".join(method) + "\\n\\n")
 print(f"SMS_AUTH_REPORT: {AUTH_OUT} ({AUTH_OUT.stat().st_size} bytes)")
+
+# Capture the actual login ViewModels and all methods that reference them.
+# The previous screen-only report did not include these classes, so it could
+# not establish the path from the UI action to the authentication request.
+VM_OUT = Path("sms-auth-viewmodels-report.txt")
+VM_DESCRIPTORS = ("Lox8;", "Lhi4;")
+vm_classes = []
+vm_callers = []
+for path in files:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        continue
+    class_line = next((x.strip() for x in lines if x.startswith(".class ")), "")
+    if any(desc in class_line for desc in VM_DESCRIPTORS):
+        vm_classes.append((path, lines))
+        continue
+    for i, line in enumerate(lines):
+        if any(desc + "->" in line for desc in VM_DESCRIPTORS):
+            start = i
+            while start > 0 and not lines[start].startswith(".method "):
+                start -= 1
+            if lines[start].startswith(".method "):
+                end = i
+                while end < len(lines) and not lines[end].startswith(".end method"):
+                    end += 1
+                vm_callers.append((path, start + 1, lines[start:min(end + 1, len(lines))]))
+with VM_OUT.open("w", encoding="utf-8") as f:
+    f.write("MAX 26.32.1 / 6831 SMS auth ViewModels and callsites\\n")
+    f.write(f"Smali files scanned: {len(files)}\\n")
+    f.write(f"ViewModel classes: {len(vm_classes)}\\n")
+    f.write(f"Caller methods: {len(vm_callers)}\\n\\n")
+    for path, lines in vm_classes:
+        f.write(f"===== VIEWMODEL {path} =====\\n")
+        f.write("\\n".join(lines) + "\\n\\n")
+    for path, line_no, method in vm_callers:
+        f.write(f"===== VIEWMODEL CALLER {path}:{line_no} =====\\n")
+        f.write("\\n".join(method) + "\\n\\n")
+print(f"SMS_AUTH_VIEWMODELS_REPORT: {VM_OUT} ({VM_OUT.stat().st_size} bytes)")
