@@ -5,6 +5,7 @@ import re
 
 ROOT = Path("apk_workdir")
 OUT = Path("jni-sms-report.txt")
+TARGET_OUT = Path("jni-sms-target-classes.txt")
 KEYS = (
     "initializeSessionSeed",
     "fingerprint",
@@ -72,4 +73,34 @@ with OUT.open("w", encoding="utf-8") as f:
         f.write("\n".join(context) + "\n\n")
 
 print(f"JNI_SMS_REPORT: {OUT} ({OUT.stat().st_size} bytes)")
-print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods and {len(target)} raw call contexts.")
+# Preserve complete target classes and every caller of the package-signature checker.
+target_paths = {
+    ROOT / "smali/lz8.smali",
+    ROOT / "smali/one/me/callssdk/CallsSdkInitializer.smali",
+    ROOT / "smali_classes2/yt0.smali",
+}
+callers = []
+for path in files:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        continue
+    if any("Lyt0;->a(" in line for line in lines):
+        target_paths.add(path)
+        for i, line in enumerate(lines):
+            if "Lyt0;->a(" in line:
+                callers.append((path, i + 1, lines[max(0, i-35):min(len(lines), i+25)]))
+
+with TARGET_OUT.open("w", encoding="utf-8") as f:
+    f.write("Complete target classes and callsites for JNI/SMS investigation\\n")
+    for path in sorted(target_paths):
+        if path.is_file():
+            f.write(f"\\n===== FULL CLASS {path} =====\\n")
+            f.write(path.read_text(encoding="utf-8", errors="replace"))
+            f.write("\\n")
+    for path, line_no, context in callers:
+        f.write(f"\\n===== CALLER {path}:{line_no} =====\\n")
+        f.write("\\n".join(context) + "\\n")
+
+print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods, {len(target)} raw contexts, {len(target_paths)} full classes and {len(callers)} yt0 callsites.")
+print(f"TARGET_CLASS_REPORT: {TARGET_OUT} ({TARGET_OUT.stat().st_size} bytes)")
