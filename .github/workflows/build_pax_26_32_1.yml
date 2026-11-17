@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/build_pax_26_32_1.yml'
       - 'scripts/patch_pax_26_32_1.py'
+      - 'scripts/inspect_jni_sms_26_32_1.py'
       - 'scripts/apply_pax_branding.py'
       - 'patches/**'
       - 'PAX.png'
@@ -86,6 +87,7 @@ jobs:
           path: |
             jni-sms-report.txt
             jni-sms-target-classes.txt
+            sms-auth-flow-report.txt
           if-no-files-found: error
           retention-days: 14
 
