@@ -76,6 +76,17 @@ jobs:
       - name: Decode base APK
         run: apktool d source/base.apk -f -o apk_workdir
 
+      - name: Inspect JNI and SMS fingerprint path (read-only)
+        run: python scripts/inspect_jni_sms_26_32_1.py
+
+      - name: Upload JNI/SMS inspection report
+        uses: actions/upload-artifact@v4
+        with:
+          name: JNI-SMS-26.32.1-inspection
+          path: jni-sms-report.txt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Apply strict PAX privacy patch
         run: python scripts/patch_pax_26_32_1.py
 
