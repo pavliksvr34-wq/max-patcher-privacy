@@ -80,16 +80,19 @@ target_paths = {
     ROOT / "smali_classes2/yt0.smali",
 }
 callers = []
+meta_callers = []
 for path in files:
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         continue
-    if any("Lyt0;->a(" in line for line in lines):
+    if any("Lyt0;->a(" in line for line in lines) or any("CallsSdkInitializer;->calculateMeta(" in line for line in lines):
         target_paths.add(path)
         for i, line in enumerate(lines):
-            if "Lyt0;->a(" in line:
+            if "Lyt0;->a(" in line or "CallsSdkInitializer;->calculateMeta(" in line:
                 callers.append((path, i + 1, lines[max(0, i-35):min(len(lines), i+25)]))
+            if "CallsSdkInitializer;->calculateMeta(" in line:
+                meta_callers.append((path, i + 1, lines[max(0, i-45):min(len(lines), i+30)]))
 
 with TARGET_OUT.open("w", encoding="utf-8") as f:
     f.write("Complete target classes and callsites for JNI/SMS investigation\\n")
@@ -104,3 +107,4 @@ with TARGET_OUT.open("w", encoding="utf-8") as f:
 
 print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods, {len(target)} raw contexts, {len(target_paths)} full classes and {len(callers)} yt0 callsites.")
 print(f"TARGET_CLASS_REPORT: {TARGET_OUT} ({TARGET_OUT.stat().st_size} bytes)")
+print(f"calculateMeta callers: {len(meta_callers)}")
