@@ -104,6 +104,9 @@ with TARGET_OUT.open("w", encoding="utf-8") as f:
     for path, line_no, context in callers:
         f.write(f"\\n===== CALLER {path}:{line_no} =====\\n")
         f.write("\\n".join(context) + "\\n")
+    for path, line_no, context in meta_callers:
+        f.write(f"\\n===== CALCULATE_META CALLER {path}:{line_no} =====\\n")
+        f.write("\\n".join(context) + "\\n")
 
 print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods, {len(target)} raw contexts, {len(target_paths)} full classes and {len(callers)} yt0 callsites.")
 print(f"TARGET_CLASS_REPORT: {TARGET_OUT} ({TARGET_OUT.stat().st_size} bytes)")
