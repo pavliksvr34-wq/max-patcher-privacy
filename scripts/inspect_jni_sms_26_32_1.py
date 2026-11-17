@@ -112,8 +112,8 @@ print(f"Scanned {len(files)} smali files; captured {len(hits)} relevant methods,
 print(f"TARGET_CLASS_REPORT: {TARGET_OUT} ({TARGET_OUT.stat().st_size} bytes)")
 print(f"calculateMeta callers: {len(meta_callers)}")
 
-// Read-only SMS authorization trace: preserve complete login screens,
-// integrity-protection classes, and methods that invoke or reference them.
+# Read-only SMS authorization trace: preserve complete login screens,
+# integrity-protection classes, and methods that invoke or reference them.
 AUTH_OUT = Path("sms-auth-flow-report.txt")
 AUTH_CLASS_TOKENS = (
     "Lone/me/login/inputphone/InputPhoneScreen;",
