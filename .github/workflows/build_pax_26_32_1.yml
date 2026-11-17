@@ -83,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: JNI-SMS-26.32.1-inspection
-          path: jni-sms-report.txt
+          path: |\n            jni-sms-report.txt\n            jni-sms-target-classes.txt
           if-no-files-found: error
           retention-days: 14
 
