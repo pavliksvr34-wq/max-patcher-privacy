@@ -88,6 +88,7 @@ jobs:
             jni-sms-report.txt
             jni-sms-target-classes.txt
             sms-auth-flow-report.txt
+            sms-auth-viewmodels-report.txt
           if-no-files-found: error
           retention-days: 14
 
