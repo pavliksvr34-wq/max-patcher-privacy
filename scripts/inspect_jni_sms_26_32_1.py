@@ -251,7 +251,8 @@ for path in files:
     except OSError:
         continue
     source_cache[path] = src
-    m = re.search(r"(?m)^\\.class\\s+.*?(L[^;]+;)", src)
+    class_line = next((line.strip() for line in src.splitlines() if line.startswith(".class ")), "")
+    m = re.search(r"(L[^;]+;)", class_line)
     if m:
         class_index[m.group(1)] = path
 
@@ -259,7 +260,7 @@ out = []
 out += ["MAX 26.32.1 / 6831 focused SMS auth trace", f"Smali files scanned: {len(files)}"]
 for desc in wanted:
     p = class_index.get(desc)
-    out.append(f"\\n===== DECLARATION {desc}: {p if p else 'NOT FOUND'} =====")
+    out.append(NL + f"===== DECLARATION {desc}: {p if p else 'NOT FOUND'} =====")
     if p:
         out.append(source_cache[p])
     else:
@@ -278,11 +279,11 @@ if oe0_path:
     for desc in re.findall(r"L[^;]+;", src):
         if desc not in ("Loe0;", "Ljava/lang/Object;", "Ljava/lang/String;"):
             deps.add(desc)
-    out.append("\\n===== OE0 DEPENDENCY DECLARATIONS =====")
+    out.append(NL + "===== OE0 DEPENDENCY DECLARATIONS =====")
     for desc in sorted(deps):
         p = class_index.get(desc)
         if p:
-            out.append(f"\\n--- {desc} :: {p} ---")
+            out.append(NL + f"--- {desc} :: {p} ---")
             out.append(source_cache[p])
     out.append("\\n===== OE0 REFERENCES TO NETWORK / HTTP / API =====")
     for i, line in enumerate(src.splitlines()):
