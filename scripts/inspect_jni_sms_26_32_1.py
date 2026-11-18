@@ -322,5 +322,21 @@ for field_ref in ("Lf0d;->v:Lf0d;", "Lf0d;->l:Lf0d;", "Lf0d;->u:Lf0d;", "Lf0d;->
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"CALLSITE COUNT: {count}")
+# Resolve AUTH_CREATE_TRACK request construction and all qdc constructors.
+for token in ("Lqdc;-><init>()V", "Lqdc;-><init>(Lf0d;B)V", "new-instance Lqdc"):
+    out.append(NL + f"===== TRACK REQUEST CONSTRUCTION {token} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if token in line:
+                count += 1
+                lo, hi = max(0, line_no-65), min(len(source_lines), line_no+100)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"REFERENCE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
