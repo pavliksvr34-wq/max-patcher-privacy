@@ -396,5 +396,21 @@ for token in ("Llg0;-><init>(Ljava/lang/Object;Ljava/lang/String;ILzw4;B)V", "Ll
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"CALLSITE COUNT: {count}")
+# Trace the use case entry point which triggers AUTH_REQUEST.
+for token in ("Lng0;->a(Ljava/lang/String;ILkfi;)Ljava/lang/Object;", "new-instance Lng0", "Llg0;-><init>(Ljava/lang/Object;Ljava/lang/String;ILzw4;B)V"):
+    out.append(NL + f"===== AUTH REQUEST ENTRY CALLSITES {token} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if token in line:
+                count += 1
+                lo, hi = max(0, line_no-70), min(len(source_lines), line_no+100)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"CALLSITE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
