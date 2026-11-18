@@ -236,3 +236,58 @@ with FLOW_OUT.open("w", encoding="utf-8") as f:
         f.write(f"===== FLOW CALLER {path}:{line_no} =====\\n")
         f.write("\\n".join(method) + "\\n\\n")
 print(f"SMS_AUTH_DOMAIN_NETWORK_REPORT: {FLOW_OUT} ({FLOW_OUT.stat().st_size} bytes)")
+
+
+# Focused auth repository trace: resolve actual descriptors from the ViewModel call.
+# Use class declarations and references found in decoded smali, not guessed paths.
+FOCUSED_OUT = Path("sms-auth-focused-trace.txt")
+NL = chr(10)
+wanted = ("Loe0;", "Lme0;", "Lnx9;", "Lox8;")
+class_index = {}
+source_cache = {}
+for path in files:
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    source_cache[path] = src
+    m = re.search(r"(?m)^\\.class\\s+.*?(L[^;]+;)", src)
+    if m:
+        class_index[m.group(1)] = path
+
+out = []
+out += ["MAX 26.32.1 / 6831 focused SMS auth trace", f"Smali files scanned: {len(files)}"]
+for desc in wanted:
+    p = class_index.get(desc)
+    out.append(f"\\n===== DECLARATION {desc}: {p if p else 'NOT FOUND'} =====")
+    if p:
+        out.append(source_cache[p])
+    else:
+        refs = []
+        for path, src in source_cache.items():
+            if desc + "->" in src:
+                refs.append(str(path))
+        out.append("Reference files: " + ", ".join(refs[:100]))
+
+# Extract all class descriptors referenced from oe0's implementation and include
+# their declarations, giving a concrete next hop instead of broad keyword matches.
+oe0_path = class_index.get("Loe0;")
+deps = set()
+if oe0_path:
+    src = source_cache[oe0_path]
+    for desc in re.findall(r"L[^;]+;", src):
+        if desc not in ("Loe0;", "Ljava/lang/Object;", "Ljava/lang/String;"):
+            deps.add(desc)
+    out.append("\\n===== OE0 DEPENDENCY DECLARATIONS =====")
+    for desc in sorted(deps):
+        p = class_index.get(desc)
+        if p:
+            out.append(f"\\n--- {desc} :: {p} ---")
+            out.append(source_cache[p])
+    out.append("\\n===== OE0 REFERENCES TO NETWORK / HTTP / API =====")
+    for i, line in enumerate(src.splitlines()):
+        if re.search(r"retrofit|okhttp|http|api|request|execute|enqueue|\.a\\(", line, re.I):
+            out.append(f"{i+1}: {line}")
+
+FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
+print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
