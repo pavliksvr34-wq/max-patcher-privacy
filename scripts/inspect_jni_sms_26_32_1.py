@@ -425,5 +425,22 @@ for class_name in ("kg0", "lz8", "hi4", "tpb", "qcf", "lgc", "lki", "fki"):
             out.append(NL + f"===== RESOLVED PHONE AUTH CLASS {descriptor} ({candidate}) =====")
             out.append(content)
             break
+# Inspect the Calls SDK JNI dependency used synchronously while building AUTH_REQUEST.
+for descriptor in (
+    "Lone/me/callssdk/CallsSdkInitializer;",
+    "Lvt5;",
+    "Lwf4;",
+    "Lg2;",
+):
+    for candidate in files:
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        first = next((line.strip() for line in content.splitlines() if line.startswith(".class ")), "")
+        if first.endswith(descriptor):
+            out.append(NL + f"===== AUTH REQUEST JNI DEPENDENCY {descriptor} ({candidate}) =====")
+            out.append(content)
+            break
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
