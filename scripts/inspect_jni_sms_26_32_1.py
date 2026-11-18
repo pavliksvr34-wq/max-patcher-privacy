@@ -368,5 +368,33 @@ for class_path in (
         out.append(class_path.read_text(encoding="utf-8", errors="replace"))
     else:
         out.append("FILE NOT FOUND")
+# Resolve actual obfuscated descriptors used by the phone-auth transport.
+for class_name in ("ng0", "gf0", "llz8", "qzb", "c", "lg0", "lgc", "lgc"):
+    descriptor = "L" + class_name + ";"
+    for candidate in files:
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        first = next((line.strip() for line in content.splitlines() if line.startswith(".class ")), "")
+        if first.endswith(descriptor):
+            out.append(NL + f"===== RESOLVED PHONE AUTH CLASS {descriptor} ({candidate}) =====")
+            out.append(content)
+            break
+for token in ("Llg0;-><init>(Ljava/lang/Object;Ljava/lang/String;ILzw4;B)V", "Llg0;-><init>(Lng0;Ljava/lang/String;ILzw4;B)V"):
+    out.append(NL + f"===== PHONE AUTH COROUTINE CALLSITES {token} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if token in line:
+                count += 1
+                lo, hi = max(0, line_no-55), min(len(source_lines), line_no+85)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"CALLSITE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
