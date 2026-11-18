@@ -261,6 +261,19 @@ for path in focused_paths:
         out.append(path.read_text(encoding="utf-8", errors="replace"))
     else:
         out.append("FILE NOT FOUND")
+# Resolve obfuscated class names from their actual .class declarations.
+for class_name in ("f0d", "he0", "jif", "lki", "logc", "lyx9", "aki", "alc"):
+    descriptor = "L" + class_name + ";"
+    for candidate in files:
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        first = next((line.strip() for line in content.splitlines() if line.startswith(".class ")), "")
+        if first.endswith(descriptor):
+            out.append(NL + f"===== RESOLVED CLASS {descriptor} ({candidate}) =====")
+            out.append(content)
+            break
 # Enumerate every callsite of oe0.a and me0 in all decoded dex directories.
 for desc in ("Loe0;->a(", "Lme0;"):
     out.append(NL + f"===== CALLSITES {desc} =====")
