@@ -306,5 +306,21 @@ for token in ('"AUTH_REQUEST"', '"AUTH_CREATE_TRACK"', '"AUTH_CONFIRM"', '"AUTH_
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"REFERENCE COUNT: {count}")
+# Find actual callsites by enum field references, not just enum string declarations.
+for field_ref in ("Lf0d;->v:Lf0d;", "Lf0d;->l:Lf0d;", "Lf0d;->u:Lf0d;", "Lf0d;->I3:Lf0d;"):
+    out.append(NL + f"===== AUTH ENUM CALLSITES {field_ref} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if field_ref in line:
+                count += 1
+                lo, hi = max(0, line_no-50), min(len(source_lines), line_no+75)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"CALLSITE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
