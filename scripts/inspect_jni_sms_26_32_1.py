@@ -338,5 +338,21 @@ for token in ("Lqdc;-><init>()V", "Lqdc;-><init>(Lf0d;B)V", "new-instance Lqdc")
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"REFERENCE COUNT: {count}")
+# Trace phone-auth START_AUTH / RESEND request constructor and callers.
+for token in ("Ljg0;-><init>(IILjava/lang/String;[B)V", "Ljg0;"):
+    out.append(NL + f"===== PHONE AUTH REQUEST CALLSITES {token} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if token in line and not source_path.name == "jg0.smali":
+                count += 1
+                lo, hi = max(0, line_no-65), min(len(source_lines), line_no+95)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"CALLSITE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
