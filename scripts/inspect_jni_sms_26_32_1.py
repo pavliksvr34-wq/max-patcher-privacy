@@ -238,57 +238,37 @@ with FLOW_OUT.open("w", encoding="utf-8") as f:
 print(f"SMS_AUTH_DOMAIN_NETWORK_REPORT: {FLOW_OUT} ({FLOW_OUT.stat().st_size} bytes)")
 
 
-# Focused auth repository trace: resolve actual descriptors from the ViewModel call.
-# Use class declarations and references found in decoded smali, not guessed paths.
+# Focused auth repository trace: include exact files discovered from real callsites.
 FOCUSED_OUT = Path("sms-auth-focused-trace.txt")
 NL = chr(10)
-wanted = ("Loe0;", "Lme0;", "Lnx9;", "Lox8;")
-class_index = {}
-source_cache = {}
-for path in files:
-    try:
-        src = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        continue
-    source_cache[path] = src
-    class_line = next((line.strip() for line in src.splitlines() if line.startswith(".class ")), "")
-    m = re.search(r"(L[^;]+;)", class_line)
-    if m:
-        class_index[m.group(1)] = path
-
-out = []
-out += ["MAX 26.32.1 / 6831 focused SMS auth trace", f"Smali files scanned: {len(files)}"]
-for desc in wanted:
-    p = class_index.get(desc)
-    out.append(NL + f"===== DECLARATION {desc}: {p if p else 'NOT FOUND'} =====")
-    if p:
-        out.append(source_cache[p])
+focused_paths = (
+    ROOT / "smali_classes3/oe0.smali",
+    ROOT / "smali_classes2/me0.smali",
+    ROOT / "smali_classes2/nx9.smali",
+    ROOT / "smali/ox8.smali",
+)
+out = ["MAX 26.32.1 / 6831 focused SMS auth trace", f"Smali files scanned: {len(files)}"]
+for path in focused_paths:
+    out.append(NL + f"===== FULL CLASS {path} =====")
+    if path.is_file():
+        out.append(path.read_text(encoding="utf-8", errors="replace"))
     else:
-        refs = []
-        for path, src in source_cache.items():
-            if desc + "->" in src:
-                refs.append(str(path))
-        out.append("Reference files: " + ", ".join(refs[:100]))
-
-# Extract all class descriptors referenced from oe0's implementation and include
-# their declarations, giving a concrete next hop instead of broad keyword matches.
-oe0_path = class_index.get("Loe0;")
-deps = set()
-if oe0_path:
-    src = source_cache[oe0_path]
-    for desc in re.findall(r"L[^;]+;", src):
-        if desc not in ("Loe0;", "Ljava/lang/Object;", "Ljava/lang/String;"):
-            deps.add(desc)
-    out.append(NL + "===== OE0 DEPENDENCY DECLARATIONS =====")
-    for desc in sorted(deps):
-        p = class_index.get(desc)
-        if p:
-            out.append(NL + f"--- {desc} :: {p} ---")
-            out.append(source_cache[p])
-    out.append("\\n===== OE0 REFERENCES TO NETWORK / HTTP / API =====")
-    for i, line in enumerate(src.splitlines()):
-        if re.search(r"retrofit|okhttp|http|api|request|execute|enqueue|\.a\\(", line, re.I):
-            out.append(f"{i+1}: {line}")
-
+        out.append("FILE NOT FOUND")
+# Enumerate every callsite of oe0.a and me0 in all decoded dex directories.
+for desc in ("Loe0;->a(", "Lme0;"):
+    out.append(NL + f"===== CALLSITES {desc} =====")
+    count = 0
+    for path in files:
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines):
+            if desc in line:
+                count += 1
+                lo, hi = max(0, i-35), min(len(lines), i+45)
+                out.append(f"--- {path}:{i+1} ---")
+                out.extend(lines[lo:hi])
+    out.append(f"CALLSITE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
