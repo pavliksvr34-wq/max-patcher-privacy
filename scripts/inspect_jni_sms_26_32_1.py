@@ -412,5 +412,18 @@ for token in ("Lng0;->a(Ljava/lang/String;ILkfi;)Ljava/lang/Object;", "new-insta
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"CALLSITE COUNT: {count}")
+# Response model, request crypto metadata and login UI state.
+for class_name in ("kg0", "lz8", "hi4", "tpb", "qcf", "lgc", "lki", "fki"):
+    descriptor = "L" + class_name + ";"
+    for candidate in files:
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        first = next((line.strip() for line in content.splitlines() if line.startswith(".class ")), "")
+        if first.endswith(descriptor):
+            out.append(NL + f"===== RESOLVED PHONE AUTH CLASS {descriptor} ({candidate}) =====")
+            out.append(content)
+            break
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
