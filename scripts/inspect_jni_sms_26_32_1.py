@@ -354,5 +354,19 @@ for token in ("Ljg0;-><init>(IILjava/lang/String;[B)V", "Ljg0;"):
                 out.append(f"--- {source_path}:{line_no+1} ---")
                 out.extend(source_lines[lo:hi])
     out.append(f"CALLSITE COUNT: {count}")
+# Full request/response and crypto context for AUTH_REQUEST.
+for class_path in (
+    ROOT / "smali_classes3/lg0.smali",
+    ROOT / "smali_classes3/jg0.smali",
+    ROOT / "smali_classes3/ng0.smali",
+    ROOT / "smali_classes2/gf0.smali",
+    ROOT / "smali_classes2/llz8.smali",
+    ROOT / "smali_classes2/qzb.smali",
+):
+    out.append(NL + f"===== PHONE AUTH SUPPORT CLASS {class_path} =====")
+    if class_path.is_file():
+        out.append(class_path.read_text(encoding="utf-8", errors="replace"))
+    else:
+        out.append("FILE NOT FOUND")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
