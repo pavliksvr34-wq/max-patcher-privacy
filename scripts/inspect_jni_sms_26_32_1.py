@@ -242,7 +242,14 @@ print(f"SMS_AUTH_DOMAIN_NETWORK_REPORT: {FLOW_OUT} ({FLOW_OUT.stat().st_size} by
 FOCUSED_OUT = Path("sms-auth-focused-trace.txt")
 NL = chr(10)
 focused_paths = (
+    ROOT / "smali_classes2/sn.smali",
     ROOT / "smali_classes3/oe0.smali",
+    ROOT / "smali_classes2/lyx9.smali",
+    ROOT / "smali_classes2/logc.smali",
+    ROOT / "smali_classes2/jif.smali",
+    ROOT / "smali_classes2/lki.smali",
+    ROOT / "smali_classes2/aki.smali",
+    ROOT / "smali_classes2/alc.smali",
     ROOT / "smali_classes2/me0.smali",
     ROOT / "smali_classes2/nx9.smali",
     ROOT / "smali/ox8.smali",
