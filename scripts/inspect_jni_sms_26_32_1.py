@@ -197,3 +197,42 @@ with VM_OUT.open("w", encoding="utf-8") as f:
         f.write(f"===== VIEWMODEL CALLER {path}:{line_no} =====\\n")
         f.write("\\n".join(method) + "\\n\\n")
 print(f"SMS_AUTH_VIEWMODELS_REPORT: {VM_OUT} ({VM_OUT.stat().st_size} bytes)")
+
+# Follow the phone-validation result into the domain/repository/network layer.
+# These classes are selected from concrete callsites in Lox8.d1(), not by
+# broad keyword matching. This remains read-only and does not modify the APK.
+FLOW_OUT = Path("sms-auth-domain-network-report.txt")
+FLOW_DESCRIPTORS = ("Loe0;", "Lnx9;", "Lme0;", "Lgig;", "Lrf0;", "Lmf5;", "Lle0;", "Ld5e;")
+flow_classes = []
+flow_callers = []
+for path in files:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        continue
+    class_line = next((x.strip() for x in lines if x.startswith(".class ")), "")
+    if any(desc in class_line for desc in FLOW_DESCRIPTORS):
+        flow_classes.append((path, lines))
+        continue
+    for i, line in enumerate(lines):
+        if any(desc + "->" in line for desc in FLOW_DESCRIPTORS):
+            start = i
+            while start > 0 and not lines[start].startswith(".method "):
+                start -= 1
+            if lines[start].startswith(".method "):
+                end = i
+                while end < len(lines) and not lines[end].startswith(".end method"):
+                    end += 1
+                flow_callers.append((path, start + 1, lines[start:min(end + 1, len(lines))]))
+with FLOW_OUT.open("w", encoding="utf-8") as f:
+    f.write("MAX 26.32.1 / 6831 phone validation -> auth domain/network layer\\n")
+    f.write(f"Smali files scanned: {len(files)}\\n")
+    f.write(f"Target classes: {len(flow_classes)}\\n")
+    f.write(f"Caller methods: {len(flow_callers)}\\n\\n")
+    for path, lines in flow_classes:
+        f.write(f"===== FLOW CLASS {path} =====\\n")
+        f.write("\\n".join(lines) + "\\n\\n")
+    for path, line_no, method in flow_callers:
+        f.write(f"===== FLOW CALLER {path}:{line_no} =====\\n")
+        f.write("\\n".join(method) + "\\n\\n")
+print(f"SMS_AUTH_DOMAIN_NETWORK_REPORT: {FLOW_OUT} ({FLOW_OUT.stat().st_size} bytes)")
