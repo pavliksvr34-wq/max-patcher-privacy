@@ -290,5 +290,21 @@ for desc in ("Loe0;->a(", "Lme0;"):
                 out.append(f"--- {path}:{i+1} ---")
                 out.extend(lines[lo:hi])
     out.append(f"CALLSITE COUNT: {count}")
+# Trace creation and confirmation operations which precede AUTH_BY_TRACK.
+for token in ('"AUTH_REQUEST"', '"AUTH_CREATE_TRACK"', '"AUTH_CONFIRM"', '"AUTH_CHECK_CALL"'):
+    out.append(NL + f"===== AUTH OPERATION REFERENCES {token} =====")
+    count = 0
+    for source_path in files:
+        try:
+            source_lines = source_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line_no, line in enumerate(source_lines):
+            if token in line:
+                count += 1
+                lo, hi = max(0, line_no-45), min(len(source_lines), line_no+65)
+                out.append(f"--- {source_path}:{line_no+1} ---")
+                out.extend(source_lines[lo:hi])
+    out.append(f"REFERENCE COUNT: {count}")
 FOCUSED_OUT.write_text(NL.join(out) + NL, encoding="utf-8")
 print(f"SMS_AUTH_FOCUSED_TRACE: {FOCUSED_OUT} ({FOCUSED_OUT.stat().st_size} bytes)")
