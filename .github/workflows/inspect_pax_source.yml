@@ -395,6 +395,46 @@ jobs:
           print(f"Privacy inventory written; decoded smali classes: {len(files)}; lines: {len(out)}")
           PY
 
+      - name: Trace SMS fingerprint and Bundle accessors globally
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, shutil
+
+          root = Path("apk_workdir")
+          files = list(root.rglob("*.smali")) if root.exists() else []
+          patterns = {
+              "QZB_FIELD_READ_WRITE": re.compile(r"Lqzb;->d:Ljava/lang/Long;"),
+              "CALLS_SEED_NATIVE": re.compile(r"initializeSessionSeed|IntegrityProtectionInit|sign_check"),
+              "CALCULATE_META": re.compile(r"CallsSdkInitializer;->calculateMeta"),
+              "AUTH_REQUEST": re.compile(r"AUTH_REQUEST|START_AUTH|AUTH_BY_TRACK"),
+          }
+          out = []
+          out.append(f"Decoded smali files: {len(files)}")
+          for label, rx in patterns.items():
+              out.append("\n===== " + label + " =====")
+              count = 0
+              for path in files:
+                  try:
+                      lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+                  except OSError:
+                      continue
+                  for i, line in enumerate(lines):
+                      if rx.search(line):
+                          lo, hi = max(0, i-12), min(len(lines), i+16)
+                          out.append(f"\n--- {path}:{i+1} ---")
+                          out.extend(f"{j+1}: {lines[j]}" for j in range(lo, hi))
+                          count += 1
+              out.append(f"TOTAL MATCHES: {count}")
+          helper = next(iter(root.rglob("bx.smali")), None)
+          if helper:
+              out.append("\n===== FULL BUNDLE ACCESSOR bx.smali =====")
+              out.extend(f"{i+1}: {line}" for i, line in enumerate(helper.read_text(encoding="utf-8", errors="ignore").splitlines()))
+          Path("auth_integrity_global_trace.txt").write_text("\n".join(out), encoding="utf-8")
+          print(f"Global auth/integrity trace written; {len(out)} lines")
+          PY
+
       - name: Upload inspection report
         if: always()
         uses: actions/upload-artifact@v4
@@ -406,6 +446,7 @@ jobs:
             mytracker_boundary_report.txt
             tracker_source/
             privacy_inventory.txt
+            auth_integrity_global_trace.txt
             privacy_methods/
             apkm/info.json
             apk_workdir/AndroidManifest.xml
