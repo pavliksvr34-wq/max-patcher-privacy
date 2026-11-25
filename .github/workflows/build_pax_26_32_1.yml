@@ -55,9 +55,9 @@ jobs:
           print("Validated MAX 26.32.1 / 6831; APK entries:", apks)
           PY
 
-      # Preserve the publisher-signed source package as an untouched control.
+      # Preserve the source-signed source package as an untouched control.
       # This artifact is uploaded before any decode, patch, rebuild, or re-sign step.
-      - name: Upload untouched publisher-signed control APKM
+      - name: Upload untouched source-signed control APKM
         uses: actions/upload-artifact@v4
         with:
           name: MAX-26.32.1-6831-original-untouched
